@@ -3,12 +3,13 @@ import { AnimatePresence, motion } from 'motion/react'
 import { BookOpen, ScrollText, Sparkles, Swords } from 'lucide-react'
 import { TopBar } from './components/TopBar'
 import { Tabs, type TabDef } from './components/Tabs'
+import { ToastViewport } from './components/Toast'
 import { PrincipalSection } from './components/sections/PrincipalSection'
 import { CombateSection } from './components/sections/CombateSection'
 import { ConjuracaoSection } from './components/sections/ConjuracaoSection'
 import { AntecedenteSection } from './components/sections/AntecedenteSection'
 import { useCharacterFile } from './hooks/useCharacterFile'
-import { sthiven } from './data/sthiven'
+import { useToasts } from './hooks/useToasts'
 import { createBlankCharacter } from './types/character'
 
 const TABS: TabDef[] = [
@@ -21,23 +22,44 @@ const TABS: TabDef[] = [
 function App() {
   const [tab, setTab] = useState('principal')
   const { character, updateCharacter, fileName, status, openFile, saveFile, saveFileAs, newFile } =
-    useCharacterFile(sthiven)
+    useCharacterFile()
+  const { toasts, push, dismiss } = useToasts()
+
+  const handleOpen = async () => {
+    const result = await openFile()
+    if (result.status === 'opened') push(`Ficha "${result.fileName}" carregada.`, 'success')
+    else if (result.status === 'error') push('Não foi possível abrir o arquivo. Verifique se é um JSON de ficha válido.', 'error')
+  }
+
+  const handleSave = async () => {
+    const result = await saveFile()
+    if (result.status === 'saved') push(`Ficha salva em "${result.fileName}".`, 'success')
+    else if (result.status === 'error') push('Erro ao salvar a ficha.', 'error')
+  }
+
+  const handleSaveAs = async () => {
+    const result = await saveFileAs()
+    if (result.status === 'saved') push(`Ficha salva em "${result.fileName}".`, 'success')
+    else if (result.status === 'error') push('Erro ao salvar a ficha.', 'error')
+  }
 
   const handleNew = () => {
     if (confirm('Criar uma nova ficha em branco? As alterações não salvas da ficha atual serão perdidas.')) {
       newFile(createBlankCharacter())
+      push('Nova ficha em branco criada.', 'info')
     }
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_#1c1917_0%,_#0b0c10_60%)] text-stone-200">
+    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,#1c1917_0%,#0b0c10_60%)] text-stone-200">
+      <ToastViewport toasts={toasts} onDismiss={dismiss} />
       <TopBar
         characterName={character.name}
         fileName={fileName}
         status={status}
-        onOpen={openFile}
-        onSave={saveFile}
-        onSaveAs={saveFileAs}
+        onOpen={handleOpen}
+        onSave={handleSave}
+        onSaveAs={handleSaveAs}
         onNew={handleNew}
       />
       <Tabs tabs={TABS} active={tab} onChange={setTab} />
