@@ -1,22 +1,24 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'motion/react'
-import { ChevronDown, Eye, FolderSearch, Link2, Plus, Trash2, UserRoundSearch } from 'lucide-react'
+import { ChevronDown, Eye, FolderSearch, Link2, Plus, Search, Trash2, UserRoundSearch } from 'lucide-react'
 import {
   createCase,
   createSuspect,
   createTestimony,
   createWitness,
-  SUSPECT_FIELD_LABELS,
+  FILTERABLE_TRAIT_FIELDS,
+  TRAIT_FIELD_LABELS,
   type CaseStatus,
   type Character,
   type InvestigationCase,
+  type PhysicalTraits,
   type Suspect,
-  type SuspectField,
   type Testimony,
+  type TraitField,
   type Witness,
 } from '../../types/character'
-import { TextAreaField } from '../ui'
+import { Panel, TextAreaField, TextField } from '../ui'
 
 const STATUS_OPTIONS: { value: CaseStatus; label: string; classes: string }[] = [
   { value: 'aberto', label: 'Aberto', classes: 'border-amber-700/50 bg-amber-950/50 text-amber-400' },
@@ -24,7 +26,18 @@ const STATUS_OPTIONS: { value: CaseStatus; label: string; classes: string }[] = 
   { value: 'arquivado', label: 'Arquivado', classes: 'border-stone-700 bg-stone-900 text-stone-400' },
 ]
 
-const SUSPECT_FIELDS: SuspectField[] = ['size', 'gender', 'hairColor', 'hairType', 'eyeColor']
+type FilterFields = Record<(typeof FILTERABLE_TRAIT_FIELDS)[number], string>
+
+const BLANK_FILTERS: FilterFields = { size: '', gender: '', hairColor: '', hairType: '', eyeColor: '' }
+
+interface PersonMatch {
+  caseId: string
+  caseTitle: string
+  kind: 'witness' | 'suspect'
+  id: string
+  name: string
+  traits: PhysicalTraits
+}
 
 function stripTestimonyFromSuspects(investigation: InvestigationCase, testimonyIds: string[]): InvestigationCase {
   if (testimonyIds.length === 0) return investigation
@@ -34,7 +47,7 @@ function stripTestimonyFromSuspects(investigation: InvestigationCase, testimonyI
     suspects: investigation.suspects.map((s) => {
       let changed = false
       const sources = { ...s.sources }
-      for (const key of Object.keys(sources) as SuspectField[]) {
+      for (const key of Object.keys(sources) as TraitField[]) {
         const arr = sources[key]
         if (!arr) continue
         const filtered = arr.filter((id) => !idSet.has(id))
@@ -57,6 +70,9 @@ export function CasosSection({
 }) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const [subTab, setSubTabState] = useState<Record<string, 'testemunhas' | 'suspeitos'>>({})
+  const [filters, setFilters] = useState<FilterFields>(BLANK_FILTERS)
+  const caseRefs = useRef(new Map<string, HTMLDivElement>())
+
   const toggleCollapsed = (id: string) => setCollapsed((prev) => ({ ...prev, [id]: !prev[id] }))
   const getSubTab = (id: string) => subTab[id] ?? 'testemunhas'
   const setSubTab = (id: string, tab: 'testemunhas' | 'suspeitos') => setSubTabState((prev) => ({ ...prev, [id]: tab }))
@@ -134,7 +150,7 @@ export function CasosSection({
   const removeSuspect = (caseId: string, suspectId: string) =>
     updateCase(caseId, (cs) => ({ ...cs, suspects: cs.suspects.filter((s) => s.id !== suspectId) }))
 
-  const toggleSource = (caseId: string, suspectId: string, field: SuspectField, testimonyId: string) =>
+  const toggleSource = (caseId: string, suspectId: string, field: TraitField, testimonyId: string) =>
     updateCase(caseId, (cs) => ({
       ...cs,
       suspects: cs.suspects.map((s) => {
@@ -144,6 +160,32 @@ export function CasosSection({
         return { ...s, sources: { ...s.sources, [field]: next } }
       }),
     }))
+
+  const hasActiveFilter = Object.values(filters).some((v) => v.trim() !== '')
+
+  const filterResults: PersonMatch[] = hasActiveFilter
+    ? character.cases.flatMap((cs) => {
+        const caseTitle = cs.title || 'Caso sem título'
+        const people: PersonMatch[] = [
+          ...cs.witnesses.map((w) => ({ caseId: cs.id, caseTitle, kind: 'witness' as const, id: w.id, name: w.name, traits: w.traits })),
+          ...cs.suspects.map((s) => ({ caseId: cs.id, caseTitle, kind: 'suspect' as const, id: s.id, name: s.name, traits: s.traits })),
+        ]
+        return people.filter((p) =>
+          FILTERABLE_TRAIT_FIELDS.every((field) => {
+            const query = filters[field].trim().toLowerCase()
+            return query === '' || p.traits[field].toLowerCase().includes(query)
+          }),
+        )
+      })
+    : []
+
+  const jumpToPerson = (match: PersonMatch) => {
+    setCollapsed((prev) => ({ ...prev, [match.caseId]: false }))
+    setSubTab(match.caseId, match.kind === 'witness' ? 'testemunhas' : 'suspeitos')
+    requestAnimationFrame(() => {
+      caseRefs.current.get(match.caseId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -166,6 +208,60 @@ export function CasosSection({
         </motion.button>
       </div>
 
+      {character.cases.length > 0 && (
+        <Panel title="Buscar por traços físicos" icon={<Search size={13} className="text-amber-600" />}>
+          <p className="mb-2.5 text-xs text-stone-500">
+            Busca testemunhas e suspeitos de todos os casos por qualquer combinação de traços — útil pra achar a mesma pessoa
+            descrita em lugares diferentes.
+          </p>
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
+            {FILTERABLE_TRAIT_FIELDS.map((field) => (
+              <TextField
+                key={field}
+                label={TRAIT_FIELD_LABELS[field]}
+                value={filters[field]}
+                onChange={(v) => setFilters((prev) => ({ ...prev, [field]: v }))}
+              />
+            ))}
+          </div>
+
+          {hasActiveFilter && (
+            <div className="mt-3 border-t border-stone-800 pt-3">
+              <p className="mb-2 text-[11px] font-medium tracking-wide text-stone-500 uppercase">
+                {filterResults.length} pessoa{filterResults.length === 1 ? '' : 's'} encontrada
+                {filterResults.length === 1 ? '' : 's'}
+              </p>
+              {filterResults.length === 0 ? (
+                <p className="text-sm text-stone-600">Nenhuma testemunha ou suspeito bate com esses traços.</p>
+              ) : (
+                <div className="flex flex-col gap-1.5">
+                  {filterResults.map((m) => (
+                    <button
+                      key={`${m.caseId}-${m.id}`}
+                      onClick={() => jumpToPerson(m)}
+                      className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md border border-stone-800 bg-stone-950/50 px-2.5 py-2 text-left text-xs transition-colors hover:border-amber-600/50"
+                    >
+                      {m.kind === 'witness' ? (
+                        <Eye size={12} className="shrink-0 text-stone-500" />
+                      ) : (
+                        <UserRoundSearch size={12} className="shrink-0 text-stone-500" />
+                      )}
+                      <span className="font-medium text-stone-200">{m.name || 'Sem nome'}</span>
+                      <span className="text-stone-600">· {m.caseTitle}</span>
+                      <span className="text-stone-500">
+                        {FILTERABLE_TRAIT_FIELDS.filter((f) => m.traits[f])
+                          .map((f) => `${TRAIT_FIELD_LABELS[f]}: ${m.traits[f]}`)
+                          .join(' · ')}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </Panel>
+      )}
+
       {character.cases.length === 0 && (
         <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-stone-800 bg-stone-950/40 px-6 py-14 text-center">
           <FolderSearch size={28} className="text-stone-700" />
@@ -183,6 +279,10 @@ export function CasosSection({
           return (
             <motion.div
               key={investigation.id}
+              ref={(el) => {
+                if (el) caseRefs.current.set(investigation.id, el)
+                else caseRefs.current.delete(investigation.id)
+              }}
               layout
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
@@ -273,7 +373,7 @@ export function CasosSection({
                             <WitnessCard
                               key={witness.id}
                               witness={witness}
-                              onChangeName={(name) => updateWitness(investigation.id, witness.id, { name })}
+                              onChange={(patch) => updateWitness(investigation.id, witness.id, patch)}
                               onAddTestimony={() => addTestimony(investigation.id, witness.id)}
                               onChangeTestimony={(tid, patch) => updateTestimony(investigation.id, witness.id, tid, patch)}
                               onRemoveTestimony={(tid) => removeTestimony(investigation.id, witness.id, tid)}
@@ -321,19 +421,21 @@ export function CasosSection({
 
 function WitnessCard({
   witness,
-  onChangeName,
+  onChange,
   onAddTestimony,
   onChangeTestimony,
   onRemoveTestimony,
   onRemove,
 }: {
   witness: Witness
-  onChangeName: (name: string) => void
+  onChange: (patch: Partial<Witness>) => void
   onAddTestimony: () => void
   onChangeTestimony: (testimonyId: string, patch: Partial<Testimony>) => void
   onRemoveTestimony: (testimonyId: string) => void
   onRemove: () => void
 }) {
+  const onTraitChange = (field: TraitField, value: string) => onChange({ traits: { ...witness.traits, [field]: value } })
+
   return (
     <motion.div
       layout
@@ -346,7 +448,7 @@ function WitnessCard({
         <Eye size={14} className="shrink-0 text-stone-600" />
         <input
           value={witness.name}
-          onChange={(e) => onChangeName(e.target.value)}
+          onChange={(e) => onChange({ name: e.target.value })}
           placeholder="Nome da testemunha"
           className="min-w-0 flex-1 rounded-md border border-stone-700 bg-stone-900 px-2 py-1.5 text-sm font-medium text-stone-100 outline-none focus:border-amber-600/60"
         />
@@ -354,6 +456,24 @@ function WitnessCard({
           <Trash2 size={13} />
         </button>
       </div>
+
+      <div className="mb-2.5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
+        {FILTERABLE_TRAIT_FIELDS.map((field) => (
+          <TextField
+            key={field}
+            label={TRAIT_FIELD_LABELS[field]}
+            value={witness.traits[field]}
+            onChange={(v) => onTraitChange(field, v)}
+          />
+        ))}
+      </div>
+      <TextAreaField
+        label={TRAIT_FIELD_LABELS.description}
+        rows={2}
+        value={witness.traits.description}
+        onChange={(v) => onTraitChange('description', v)}
+        className="mb-3"
+      />
 
       <div className="flex flex-col gap-2">
         {witness.testimonies.map((t) => (
@@ -409,9 +529,11 @@ function SuspectCard({
   suspect: Suspect
   witnesses: Witness[]
   onChange: (patch: Partial<Suspect>) => void
-  onToggleSource: (field: SuspectField, testimonyId: string) => void
+  onToggleSource: (field: TraitField, testimonyId: string) => void
   onRemove: () => void
 }) {
+  const onTraitChange = (field: TraitField, value: string) => onChange({ traits: { ...suspect.traits, [field]: value } })
+
   return (
     <motion.div
       layout
@@ -434,12 +556,12 @@ function SuspectCard({
       </div>
 
       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
-        {SUSPECT_FIELDS.map((field) => (
+        {FILTERABLE_TRAIT_FIELDS.map((field) => (
           <SourcedField
             key={field}
-            label={SUSPECT_FIELD_LABELS[field]}
-            value={suspect[field]}
-            onChange={(v) => onChange({ [field]: v } as Partial<Suspect>)}
+            label={TRAIT_FIELD_LABELS[field]}
+            value={suspect.traits[field]}
+            onChange={(v) => onTraitChange(field, v)}
             witnesses={witnesses}
             selected={suspect.sources[field] ?? []}
             onToggle={(tid) => onToggleSource(field, tid)}
@@ -448,10 +570,10 @@ function SuspectCard({
       </div>
 
       <SourcedField
-        label={SUSPECT_FIELD_LABELS.description}
+        label={TRAIT_FIELD_LABELS.description}
         textarea
-        value={suspect.description}
-        onChange={(v) => onChange({ description: v })}
+        value={suspect.traits.description}
+        onChange={(v) => onTraitChange('description', v)}
         witnesses={witnesses}
         selected={suspect.sources.description ?? []}
         onToggle={(tid) => onToggleSource('description', tid)}
@@ -491,12 +613,14 @@ function SourcedField({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           rows={3}
+          aria-label={label}
           className="resize-none rounded-md border border-stone-700 bg-stone-950/70 px-2.5 py-1.5 text-sm leading-relaxed text-stone-100 outline-none focus:border-amber-600/60"
         />
       ) : (
         <input
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          aria-label={label}
           className="rounded-md border border-stone-700 bg-stone-950/70 px-2.5 py-1.5 text-sm text-stone-100 outline-none focus:border-amber-600/60"
         />
       )}

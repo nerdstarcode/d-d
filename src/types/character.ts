@@ -93,15 +93,10 @@ export interface Testimony {
   what: string
 }
 
-export interface Witness {
-  id: string
-  name: string
-  testimonies: Testimony[]
-}
+/** The physical-description fields shared by witnesses and suspects, so the two can be compared and searched the same way. */
+export type TraitField = 'size' | 'gender' | 'hairColor' | 'hairType' | 'eyeColor' | 'description'
 
-export type SuspectField = 'size' | 'gender' | 'hairColor' | 'hairType' | 'eyeColor' | 'description'
-
-export const SUSPECT_FIELD_LABELS: Record<SuspectField, string> = {
+export const TRAIT_FIELD_LABELS: Record<TraitField, string> = {
   size: 'Tamanho',
   gender: 'Gênero',
   hairColor: 'Cor do cabelo',
@@ -110,17 +105,34 @@ export const SUSPECT_FIELD_LABELS: Record<SuspectField, string> = {
   description: 'Descrição',
 }
 
+/** The subset of trait fields that make sense as short faceted-search filters (excludes the free-text description). */
+export const FILTERABLE_TRAIT_FIELDS: Exclude<TraitField, 'description'>[] = [
+  'size',
+  'gender',
+  'hairColor',
+  'hairType',
+  'eyeColor',
+]
+
+export type PhysicalTraits = Record<TraitField, string>
+
+export function createPhysicalTraits(): PhysicalTraits {
+  return { size: '', gender: '', hairColor: '', hairType: '', eyeColor: '', description: '' }
+}
+
+export interface Witness {
+  id: string
+  name: string
+  traits: PhysicalTraits
+  testimonies: Testimony[]
+}
+
 export interface Suspect {
   id: string
   name: string
-  size: string
-  gender: string
-  hairColor: string
-  hairType: string
-  eyeColor: string
-  description: string
-  /** IDs of testimonies (from this case's witnesses) that back up each field's value. */
-  sources: Partial<Record<SuspectField, string[]>>
+  traits: PhysicalTraits
+  /** IDs of testimonies (from this case's witnesses) that back up each trait's value. */
+  sources: Partial<Record<TraitField, string[]>>
 }
 
 export type CaseStatus = 'aberto' | 'resolvido' | 'arquivado'
@@ -139,21 +151,11 @@ export function createTestimony(): Testimony {
 }
 
 export function createWitness(): Witness {
-  return { id: crypto.randomUUID(), name: '', testimonies: [] }
+  return { id: crypto.randomUUID(), name: '', traits: createPhysicalTraits(), testimonies: [] }
 }
 
 export function createSuspect(): Suspect {
-  return {
-    id: crypto.randomUUID(),
-    name: '',
-    size: '',
-    gender: '',
-    hairColor: '',
-    hairType: '',
-    eyeColor: '',
-    description: '',
-    sources: {},
-  }
+  return { id: crypto.randomUUID(), name: '', traits: createPhysicalTraits(), sources: {} }
 }
 
 export function createCase(): InvestigationCase {
