@@ -1,13 +1,8 @@
 import { motion } from 'motion/react'
 import { Heart, Shield, Skull, Zap } from 'lucide-react'
-import {
-  ABILITY_LABELS,
-  SKILL_DEFS,
-  abilityModifier,
-  formatModifier,
-  type AbilityKey,
-  type Character,
-} from '../../types/character'
+import { ABILITY_LABELS, SKILL_DEFS, type AbilityKey, type Character } from '../../types/character'
+import { useAttributes } from '../../context/AttributesContext'
+import { DeDAttributes } from '../../lib/DeDAttributes'
 import { Checkbox, ModifierBadge, NumberField, Panel, StatCircle, TextAreaField, TextField } from '../ui'
 
 const ABILITY_ORDER: AbilityKey[] = ['for', 'des', 'con', 'int', 'sab', 'car']
@@ -19,32 +14,8 @@ export function PrincipalSection({
   character: Character
   update: (patch: Partial<Character> | ((c: Character) => Character)) => void
 }) {
-  const toggleSave = (key: AbilityKey) => {
-    update((c) => {
-      const has = c.savingThrowProficiencies.includes(key)
-      return {
-        ...c,
-        savingThrowProficiencies: has
-          ? c.savingThrowProficiencies.filter((k) => k !== key)
-          : [...c.savingThrowProficiencies, key],
-      }
-    })
-  }
-
-  const toggleSkill = (key: string) => {
-    update((c) => {
-      const has = c.skillProficiencies.includes(key)
-      return {
-        ...c,
-        skillProficiencies: has ? c.skillProficiencies.filter((k) => k !== key) : [...c.skillProficiencies, key],
-      }
-    })
-  }
-
-  const passivePerception =
-    10 +
-    abilityModifier(character.abilities.sab.score) +
-    (character.skillProficiencies.includes('percepcao') ? character.proficiencyBonus : 0)
+  const { attrs, setAbilityScore, setProficiencyBonus, setInspiration, toggleSavingThrow, toggleSkillProficiency } =
+    useAttributes()
 
   const hpPct = character.hpMax > 0 ? Math.max(0, Math.min(100, (character.hpCurrent / character.hpMax) * 100)) : 0
 
@@ -71,8 +42,8 @@ export function PrincipalSection({
       <Panel title="Atributos" className="lg:col-span-3">
         <div className="grid grid-cols-3 gap-2 lg:grid-cols-2">
           {ABILITY_ORDER.map((key) => {
-            const score = character.abilities[key].score
-            const mod = abilityModifier(score)
+            const score = attrs.score(key)
+            const mod = attrs.modifier(key)
             return (
               <motion.div
                 key={key}
@@ -82,16 +53,11 @@ export function PrincipalSection({
                 <span className="text-[10px] font-semibold tracking-wide text-stone-500 uppercase">
                   {ABILITY_LABELS[key]}
                 </span>
-                <span className="font-mono text-lg font-bold text-amber-400">{formatModifier(mod)}</span>
+                <span className="font-mono text-lg font-bold text-amber-400">{DeDAttributes.formatModifier(mod)}</span>
                 <input
                   type="number"
                   value={score}
-                  onChange={(e) =>
-                    update((c) => ({
-                      ...c,
-                      abilities: { ...c.abilities, [key]: { score: e.target.valueAsNumber || 0 } },
-                    }))
-                  }
+                  onChange={(e) => setAbilityScore(key, e.target.valueAsNumber || 0)}
                   className="w-12 rounded-md border border-stone-700 bg-stone-900 px-1 py-0.5 text-center text-xs text-stone-200 outline-none focus:border-amber-600/60"
                 />
               </motion.div>
@@ -99,12 +65,8 @@ export function PrincipalSection({
           })}
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2">
-          <NumberField label="Inspiração" value={character.inspiration} onChange={(v) => update({ inspiration: v })} />
-          <NumberField
-            label="Bônus de proficiência"
-            value={character.proficiencyBonus}
-            onChange={(v) => update({ proficiencyBonus: v })}
-          />
+          <NumberField label="Inspiração" value={attrs.inspiration} onChange={setInspiration} />
+          <NumberField label="Bônus de proficiência" value={attrs.proficiencyBonus} onChange={setProficiencyBonus} />
         </div>
       </Panel>
 
@@ -112,13 +74,13 @@ export function PrincipalSection({
       <Panel title="Salvaguardas" className="lg:col-span-3">
         <div className="flex flex-col gap-2">
           {ABILITY_ORDER.map((key) => {
-            const prof = character.savingThrowProficiencies.includes(key)
-            const mod = abilityModifier(character.abilities[key].score) + (prof ? character.proficiencyBonus : 0)
+            const prof = attrs.isSavingThrowProficient(key)
+            const mod = attrs.savingThrowModifier(key)
             return (
               <Checkbox
                 key={key}
                 checked={prof}
-                onChange={() => toggleSave(key)}
+                onChange={() => toggleSavingThrow(key)}
                 label={
                   <span className="flex flex-1 items-center justify-between gap-2 text-sm text-stone-300">
                     <span>{ABILITY_LABELS[key]}</span>
@@ -135,13 +97,13 @@ export function PrincipalSection({
       <Panel title="Perícias" className="lg:col-span-6">
         <div className="grid grid-cols-1 gap-x-4 gap-y-1.5 sm:grid-cols-2">
           {SKILL_DEFS.map((skill) => {
-            const prof = character.skillProficiencies.includes(skill.key)
-            const mod = abilityModifier(character.abilities[skill.ability].score) + (prof ? character.proficiencyBonus : 0)
+            const prof = attrs.isSkillProficient(skill.key)
+            const mod = attrs.skillModifier(skill.key)
             return (
               <Checkbox
                 key={skill.key}
                 checked={prof}
-                onChange={() => toggleSkill(skill.key)}
+                onChange={() => toggleSkillProficiency(skill.key)}
                 label={
                   <span className="flex flex-1 items-center justify-between gap-2 text-sm text-stone-300">
                     <span>
@@ -158,7 +120,7 @@ export function PrincipalSection({
           <span className="text-[10px] font-medium tracking-wide text-stone-500 uppercase">
             Sabedoria passiva (Percepção)
           </span>
-          <span className="font-mono text-base font-bold text-amber-400">{passivePerception}</span>
+          <span className="font-mono text-base font-bold text-amber-400">{attrs.passivePerception}</span>
         </div>
       </Panel>
 

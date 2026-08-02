@@ -9,6 +9,7 @@ import { CombateSection } from './components/sections/CombateSection'
 import { ConjuracaoSection } from './components/sections/ConjuracaoSection'
 import { AntecedenteSection } from './components/sections/AntecedenteSection'
 import { CasosSection } from './components/sections/CasosSection'
+import { AttributesProvider } from './context/AttributesContext'
 import { useCharacterFile } from './hooks/useCharacterFile'
 import { useToasts } from './hooks/useToasts'
 import { createBlankCharacter } from './types/character'
@@ -67,21 +68,23 @@ function App() {
       <Tabs tabs={TABS} active={tab} onChange={setTab} />
 
       <main className="mx-auto max-w-6xl px-4 pb-16 pt-4">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={tab}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.18, ease: 'easeOut' }}
-          >
-            {tab === 'principal' && <PrincipalSection character={character} update={updateCharacter} />}
-            {tab === 'combate' && <CombateSection character={character} update={updateCharacter} />}
-            {tab === 'conjuracao' && <ConjuracaoSection character={character} update={updateCharacter} />}
-            {tab === 'antecedente' && <AntecedenteSection character={character} update={updateCharacter} />}
-            {tab === 'casos' && <CasosSection character={character} update={updateCharacter} />}
-          </motion.div>
-        </AnimatePresence>
+        <AttributesProvider character={character} update={updateCharacter}>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={tab}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.18, ease: 'easeOut' }}
+            >
+              {tab === 'principal' && <PrincipalSection character={character} update={updateCharacter} />}
+              {tab === 'combate' && <CombateSection character={character} update={updateCharacter} />}
+              {tab === 'conjuracao' && <ConjuracaoSection character={character} update={updateCharacter} />}
+              {tab === 'antecedente' && <AntecedenteSection character={character} update={updateCharacter} />}
+              {tab === 'casos' && <CasosSection character={character} update={updateCharacter} />}
+            </motion.div>
+          </AnimatePresence>
+        </AttributesProvider>
       </main>
     </div>
   )
