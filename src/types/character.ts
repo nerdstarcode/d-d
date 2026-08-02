@@ -86,16 +86,41 @@ export interface DeathSaves {
   failures: number
 }
 
-export interface PersonOfInterest {
+export interface Testimony {
+  id: string
+  where: string
+  when: string
+  what: string
+}
+
+export interface Witness {
   id: string
   name: string
-  role: string
+  testimonies: Testimony[]
+}
+
+export type SuspectField = 'size' | 'gender' | 'hairColor' | 'hairType' | 'eyeColor' | 'description'
+
+export const SUSPECT_FIELD_LABELS: Record<SuspectField, string> = {
+  size: 'Tamanho',
+  gender: 'Gênero',
+  hairColor: 'Cor do cabelo',
+  hairType: 'Tipo de cabelo',
+  eyeColor: 'Cor dos olhos',
+  description: 'Descrição',
+}
+
+export interface Suspect {
+  id: string
+  name: string
   size: string
   gender: string
   hairColor: string
   hairType: string
   eyeColor: string
   description: string
+  /** IDs of testimonies (from this case's witnesses) that back up each field's value. */
+  sources: Partial<Record<SuspectField, string[]>>
 }
 
 export type CaseStatus = 'aberto' | 'resolvido' | 'arquivado'
@@ -105,20 +130,29 @@ export interface InvestigationCase {
   title: string
   summary: string
   status: CaseStatus
-  people: PersonOfInterest[]
+  witnesses: Witness[]
+  suspects: Suspect[]
 }
 
-export function createPerson(): PersonOfInterest {
+export function createTestimony(): Testimony {
+  return { id: crypto.randomUUID(), where: '', when: '', what: '' }
+}
+
+export function createWitness(): Witness {
+  return { id: crypto.randomUUID(), name: '', testimonies: [] }
+}
+
+export function createSuspect(): Suspect {
   return {
     id: crypto.randomUUID(),
     name: '',
-    role: '',
     size: '',
     gender: '',
     hairColor: '',
     hairType: '',
     eyeColor: '',
     description: '',
+    sources: {},
   }
 }
 
@@ -128,7 +162,8 @@ export function createCase(): InvestigationCase {
     title: '',
     summary: '',
     status: 'aberto',
-    people: [],
+    witnesses: [],
+    suspects: [],
   }
 }
 
