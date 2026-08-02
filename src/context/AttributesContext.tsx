@@ -47,7 +47,7 @@ export function AttributesProvider({
       // is a plain membership toggle with no other list to keep in sync.
       toggleSavingThrow: (key) =>
         update((c) => {
-          const isProficient = c.savingThrowProficiencies.includes(key)
+          const isProficient = c.savingThrowProficiencies?.includes(key)
           return {
             ...c,
             savingThrowProficiencies: isProficient
@@ -63,7 +63,7 @@ export function AttributesProvider({
       // doesn't expect.
       toggleSkillProficiency: (skillKey) =>
         update((c) => {
-          const isProficient = c.skillProficiencies.includes(skillKey)
+          const isProficient = c.skillProficiencies?.includes(skillKey)
           return {
             ...c,
             skillProficiencies: isProficient
@@ -80,8 +80,8 @@ export function AttributesProvider({
       // can never drift into an invalid "expert but not proficient" state.
       toggleSkillExpertise: (skillKey) =>
         update((c) => {
-          const isExpert = c.skillExpertise.includes(skillKey)
-          const isAlreadyProficient = c.skillProficiencies.includes(skillKey)
+          const isExpert = c.skillExpertise?.includes(skillKey)
+          const isAlreadyProficient = c.skillProficiencies?.includes(skillKey)
           return {
             ...c,
             skillExpertise: isExpert ? without(c.skillExpertise, skillKey) : withAdded(c.skillExpertise, skillKey),

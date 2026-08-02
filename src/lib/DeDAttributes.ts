@@ -43,7 +43,7 @@ export class DeDAttributes {
   }
 
   isSavingThrowProficient(key: AbilityKey): boolean {
-    return this.character.savingThrowProficiencies.includes(key)
+    return this.character.savingThrowProficiencies?.includes(key)
   }
 
   savingThrowModifier(key: AbilityKey): number {
@@ -51,11 +51,11 @@ export class DeDAttributes {
   }
 
   isSkillProficient(skillKey: string): boolean {
-    return this.character.skillProficiencies.includes(skillKey)
+    return this.character.skillProficiencies?.includes(skillKey)
   }
 
   isSkillExpert(skillKey: string): boolean {
-    return this.character.skillExpertise.includes(skillKey)
+    return this.character.skillExpertise?.includes(skillKey)
   }
 
   /** The ability a skill is keyed off of (e.g. Medicina -> Sabedoria), or null for an unknown skill. */

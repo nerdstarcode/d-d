@@ -127,10 +127,10 @@ export function CasosSection({
     update((c) => ({
       ...c,
       cases: c.cases?.map((cs) => {
-        if (cs.id === caseId && !cs.relatedCaseIds.includes(otherCaseId)) {
+        if (cs.id === caseId && !cs.relatedCaseIds?.includes(otherCaseId)) {
           return { ...cs, relatedCaseIds: [...cs.relatedCaseIds, otherCaseId] }
         }
-        if (cs.id === otherCaseId && !cs.relatedCaseIds.includes(caseId)) {
+        if (cs.id === otherCaseId && !cs.relatedCaseIds?.includes(caseId)) {
           return { ...cs, relatedCaseIds: [...cs.relatedCaseIds, caseId] }
         }
         return cs
@@ -206,7 +206,7 @@ export function CasosSection({
       suspects: cs.suspects?.map((s) => {
         if (s.id !== suspectId) return s
         const current = s.sources[field] ?? []
-        const next = current.includes(testimonyId) ? current.filter((id) => id !== testimonyId) : [...current, testimonyId]
+        const next = current?.includes(testimonyId) ? current.filter((id) => id !== testimonyId) : [...current, testimonyId]
         return { ...s, sources: { ...s.sources, [field]: next } }
       }),
     }))
@@ -881,7 +881,7 @@ function SourceLinker({
                     >
                       <input
                         type="checkbox"
-                        checked={selected.includes(testimony.id)}
+                        checked={selected?.includes(testimony.id)}
                         onChange={() => onToggle(testimony.id)}
                         className="mt-0.5 shrink-0"
                       />

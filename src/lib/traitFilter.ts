@@ -22,7 +22,7 @@ export function hasActiveTraitFilter(filters: TraitFilters): boolean {
 export function matchesTraitFilters(traits: PhysicalTraits, filters: TraitFilters): boolean {
   return FILTERABLE_TRAIT_FIELDS.every((field) => {
     const query = filters[field].trim().toLowerCase()
-    return query === '' || traits[field].toLowerCase().includes(query)
+    return query === '' || traits[field].toLowerCase()?.includes(query)
   })
 }
 

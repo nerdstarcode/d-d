@@ -30,7 +30,7 @@ export function RelatedCasesControl({
   const btnRef = useRef<HTMLButtonElement>(null)
 
   const relatedCases = relatedIds?.map((id) => allCases.find((c) => c.id === id)).filter((c): c is CaseOption => !!c)
-  const candidates = allCases.filter((c) => c.id !== currentCaseId && !relatedIds.includes(c.id))
+  const candidates = allCases.filter((c) => c.id !== currentCaseId && !relatedIds?.includes(c.id))
 
   const openMenu = () => {
     const rect = btnRef.current?.getBoundingClientRect()
