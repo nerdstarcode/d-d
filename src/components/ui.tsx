@@ -35,12 +35,15 @@ export function TextField({
   onChange,
   placeholder,
   className = '',
+  list,
 }: {
   label: string
   value: string
   onChange: (v: string) => void
   placeholder?: string
   className?: string
+  /** id of a `<datalist>` elsewhere on the page, to offer autocomplete suggestions. */
+  list?: string
 }) {
   return (
     <label className={`flex flex-col gap-1 ${className}`}>
@@ -49,6 +52,7 @@ export function TextField({
         type="text"
         value={value}
         placeholder={placeholder}
+        list={list}
         onChange={(e: ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
         className="rounded-md border border-stone-700 bg-stone-950/70 px-2.5 py-1.5 text-sm text-stone-100 outline-none transition-colors placeholder:text-stone-600 focus:border-amber-600/60 focus:ring-1 focus:ring-amber-600/30"
       />

@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'motion/react'
-import { ChevronDown, Eye, FolderSearch, Link2, Plus, Search, Trash2, UserRoundSearch } from 'lucide-react'
+import { ChevronDown, Eye, FolderSearch, Link2, Plus, Search, Trash2, UserRoundSearch, X } from 'lucide-react'
 import {
   createCase,
   createSuspect,
@@ -26,9 +26,40 @@ const STATUS_OPTIONS: { value: CaseStatus; label: string; classes: string }[] = 
   { value: 'arquivado', label: 'Arquivado', classes: 'border-stone-700 bg-stone-900 text-stone-400' },
 ]
 
-type FilterFields = Record<(typeof FILTERABLE_TRAIT_FIELDS)[number], string>
+type FilterableField = (typeof FILTERABLE_TRAIT_FIELDS)[number]
+type FilterFields = Record<FilterableField, string>
 
 const BLANK_FILTERS: FilterFields = { size: '', gender: '', hairColor: '', hairType: '', eyeColor: '' }
+
+/** id of the `<datalist>` that offers autocomplete suggestions for a given trait filter field. */
+const traitSuggestionsListId = (field: FilterableField) => `trait-suggestions-${field}`
+
+/** Every distinct, non-empty value already typed into a trait field, across every witness and suspect in every case. */
+function collectTraitSuggestions(cases: InvestigationCase[]): Record<FilterableField, string[]> {
+  const seen: Record<FilterableField, Set<string>> = {
+    size: new Set(),
+    gender: new Set(),
+    hairColor: new Set(),
+    hairType: new Set(),
+    eyeColor: new Set(),
+  }
+  for (const cs of cases) {
+    for (const person of [...cs.witnesses, ...cs.suspects]) {
+      for (const field of FILTERABLE_TRAIT_FIELDS) {
+        const value = person.traits[field].trim()
+        if (value) seen[field].add(value)
+      }
+    }
+  }
+  const sortPt = (a: string, b: string) => a.localeCompare(b, 'pt-BR')
+  return {
+    size: [...seen.size].sort(sortPt),
+    gender: [...seen.gender].sort(sortPt),
+    hairColor: [...seen.hairColor].sort(sortPt),
+    hairType: [...seen.hairType].sort(sortPt),
+    eyeColor: [...seen.eyeColor].sort(sortPt),
+  }
+}
 
 interface PersonMatch {
   caseId: string
@@ -61,6 +92,45 @@ function stripTestimonyFromSuspects(investigation: InvestigationCase, testimonyI
   }
 }
 
+function FilterField({
+  label,
+  value,
+  onChange,
+  onClear,
+  listId,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  onClear: () => void
+  listId: string
+}) {
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="text-[10px] font-medium tracking-wide text-stone-500 uppercase">{label}</span>
+      <div className="relative">
+        <input
+          type="text"
+          value={value}
+          list={listId}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full rounded-md border border-stone-700 bg-stone-950/70 px-2.5 py-1.5 pr-7 text-sm text-stone-100 outline-none transition-colors focus:border-amber-600/60 focus:ring-1 focus:ring-amber-600/30"
+        />
+        {value && (
+          <button
+            type="button"
+            onClick={onClear}
+            title={`Limpar ${label}`}
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 text-stone-500 hover:text-stone-200"
+          >
+            <X size={13} />
+          </button>
+        )}
+      </div>
+    </label>
+  )
+}
+
 export function CasosSection({
   character,
   update,
@@ -76,6 +146,8 @@ export function CasosSection({
   const toggleCollapsed = (id: string) => setCollapsed((prev) => ({ ...prev, [id]: !prev[id] }))
   const getSubTab = (id: string) => subTab[id] ?? 'testemunhas'
   const setSubTab = (id: string, tab: 'testemunhas' | 'suspeitos') => setSubTabState((prev) => ({ ...prev, [id]: tab }))
+
+  const traitSuggestions = useMemo(() => collectTraitSuggestions(character.cases), [character.cases])
 
   const updateCase = (
     caseId: string,
@@ -210,20 +282,39 @@ export function CasosSection({
 
       {character.cases.length > 0 && (
         <Panel title="Buscar por traços físicos" icon={<Search size={13} className="text-amber-600" />}>
-          <p className="mb-2.5 text-xs text-stone-500">
-            Busca testemunhas e suspeitos de todos os casos por qualquer combinação de traços — útil pra achar a mesma pessoa
-            descrita em lugares diferentes.
-          </p>
+          <div className="mb-2.5 flex items-start justify-between gap-3">
+            <p className="text-xs text-stone-500">
+              Busca testemunhas e suspeitos de todos os casos por qualquer combinação de traços — útil pra achar a mesma pessoa
+              descrita em lugares diferentes. Comece a digitar pra ver sugestões do que já foi cadastrado.
+            </p>
+            {hasActiveFilter && (
+              <button
+                onClick={() => setFilters(BLANK_FILTERS)}
+                className="flex shrink-0 items-center gap-1 text-xs font-medium text-stone-500 hover:text-amber-400"
+              >
+                <X size={12} /> Limpar filtros
+              </button>
+            )}
+          </div>
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
             {FILTERABLE_TRAIT_FIELDS.map((field) => (
-              <TextField
+              <FilterField
                 key={field}
                 label={TRAIT_FIELD_LABELS[field]}
                 value={filters[field]}
                 onChange={(v) => setFilters((prev) => ({ ...prev, [field]: v }))}
+                onClear={() => setFilters((prev) => ({ ...prev, [field]: '' }))}
+                listId={traitSuggestionsListId(field)}
               />
             ))}
           </div>
+          {FILTERABLE_TRAIT_FIELDS.map((field) => (
+            <datalist key={field} id={traitSuggestionsListId(field)}>
+              {traitSuggestions[field].map((value) => (
+                <option key={value} value={value} />
+              ))}
+            </datalist>
+          ))}
 
           {hasActiveFilter && (
             <div className="mt-3 border-t border-stone-800 pt-3">
