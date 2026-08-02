@@ -1,5 +1,18 @@
 import { SKILL_DEFS, type AbilityKey, type Character } from '../types/character'
 
+/** Expertise doesn't add a second proficiency bonus, it doubles the one you already have. */
+const EXPERTISE_PROFICIENCY_MULTIPLIER = 2
+
+/**
+ * The proficiency bonus a skill contributes to its modifier: doubled when the
+ * "expertise" checkbox is on, applied once otherwise. Only call this once you
+ * already know the skill gets the bonus at all (proficient or expert) —
+ * it doesn't know how to return "no bonus".
+ */
+function doubleProficiencyIfIsChecked(proficiencyBonus: number, isExpertiseChecked: boolean): number {
+  return isExpertiseChecked ? proficiencyBonus * EXPERTISE_PROFICIENCY_MULTIPLIER : proficiencyBonus
+}
+
 /**
  * Encapsulates every D&D 5e rule that derives from a character's six ability
  * scores: ability modifiers, saving throw bonuses, skill bonuses (including
@@ -54,10 +67,10 @@ export class DeDAttributes {
     const ability = this.skillAbility(skillKey)
     if (!ability) return 0
     const base = this.modifier(ability)
-    // Expertise doubles the proficiency bonus instead of just adding it once.
-    if (this.isSkillExpert(skillKey)) return base + this.proficiencyBonus * 2
-    if (this.isSkillProficient(skillKey)) return base + this.proficiencyBonus
-    return base
+    const isExpert = this.isSkillExpert(skillKey)
+    const getsProficiencyBonus = isExpert || this.isSkillProficient(skillKey)
+    if (!getsProficiencyBonus) return base
+    return base + doubleProficiencyIfIsChecked(this.proficiencyBonus, isExpert)
   }
 
   /** 10 + the skill's total modifier — what D&D calls a "passive" score (e.g. passive Perception). */
