@@ -120,11 +120,24 @@ export function createPhysicalTraits(): PhysicalTraits {
   return { size: '', gender: '', hairColor: '', hairType: '', eyeColor: '', description: '' }
 }
 
+/** A reusable person template. Witnesses/suspects across any case can link to one to share its name and traits. */
+export interface BankCharacter {
+  id: string
+  name: string
+  traits: PhysicalTraits
+}
+
+export function createBankCharacter(): BankCharacter {
+  return { id: crypto.randomUUID(), name: '', traits: createPhysicalTraits() }
+}
+
 export interface Witness {
   id: string
   name: string
   traits: PhysicalTraits
   testimonies: Testimony[]
+  /** id of a BankCharacter this witness mirrors — its name/traits are kept in sync with that entry. */
+  linkedCharacterId?: string
 }
 
 export interface Suspect {
@@ -133,6 +146,8 @@ export interface Suspect {
   traits: PhysicalTraits
   /** IDs of testimonies (from this case's witnesses) that back up each trait's value. */
   sources: Partial<Record<TraitField, string[]>>
+  /** id of a BankCharacter this suspect mirrors — its name/traits are kept in sync with that entry. */
+  linkedCharacterId?: string
 }
 
 export type CaseStatus = 'aberto' | 'resolvido' | 'arquivado'
@@ -227,6 +242,7 @@ export interface Character {
   treasure: string
 
   cases: InvestigationCase[]
+  characterBank: BankCharacter[]
 }
 
 export function emptySpellLevel(): SpellLevel {
@@ -307,5 +323,6 @@ export function createBlankCharacter(): Character {
     backstory: '',
     treasure: '',
     cases: [],
+    characterBank: [],
   }
 }

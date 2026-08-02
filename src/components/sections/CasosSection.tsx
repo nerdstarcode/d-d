@@ -9,6 +9,7 @@ import {
   createWitness,
   FILTERABLE_TRAIT_FIELDS,
   TRAIT_FIELD_LABELS,
+  type BankCharacter,
   type CaseStatus,
   type Character,
   type InvestigationCase,
@@ -18,6 +19,16 @@ import {
   type TraitField,
   type Witness,
 } from '../../types/character'
+import {
+  BLANK_TRAIT_FILTERS,
+  collectTraitSuggestions,
+  hasActiveTraitFilter,
+  matchesTraitFilters,
+  traitSuggestionsListId,
+  type TraitFilters,
+} from '../../lib/traitFilter'
+import { BankLinkControl } from '../BankLinkControl'
+import { FilterField } from '../FilterField'
 import { Panel, TextAreaField, TextField } from '../ui'
 
 const STATUS_OPTIONS: { value: CaseStatus; label: string; classes: string }[] = [
@@ -25,41 +36,6 @@ const STATUS_OPTIONS: { value: CaseStatus; label: string; classes: string }[] = 
   { value: 'resolvido', label: 'Resolvido', classes: 'border-emerald-700/50 bg-emerald-950/50 text-emerald-400' },
   { value: 'arquivado', label: 'Arquivado', classes: 'border-stone-700 bg-stone-900 text-stone-400' },
 ]
-
-type FilterableField = (typeof FILTERABLE_TRAIT_FIELDS)[number]
-type FilterFields = Record<FilterableField, string>
-
-const BLANK_FILTERS: FilterFields = { size: '', gender: '', hairColor: '', hairType: '', eyeColor: '' }
-
-/** id of the `<datalist>` that offers autocomplete suggestions for a given trait filter field. */
-const traitSuggestionsListId = (field: FilterableField) => `trait-suggestions-${field}`
-
-/** Every distinct, non-empty value already typed into a trait field, across every witness and suspect in every case. */
-function collectTraitSuggestions(cases: InvestigationCase[]): Record<FilterableField, string[]> {
-  const seen: Record<FilterableField, Set<string>> = {
-    size: new Set(),
-    gender: new Set(),
-    hairColor: new Set(),
-    hairType: new Set(),
-    eyeColor: new Set(),
-  }
-  for (const cs of cases) {
-    for (const person of [...cs.witnesses, ...cs.suspects]) {
-      for (const field of FILTERABLE_TRAIT_FIELDS) {
-        const value = person.traits[field].trim()
-        if (value) seen[field].add(value)
-      }
-    }
-  }
-  const sortPt = (a: string, b: string) => a.localeCompare(b, 'pt-BR')
-  return {
-    size: [...seen.size].sort(sortPt),
-    gender: [...seen.gender].sort(sortPt),
-    hairColor: [...seen.hairColor].sort(sortPt),
-    hairType: [...seen.hairType].sort(sortPt),
-    eyeColor: [...seen.eyeColor].sort(sortPt),
-  }
-}
 
 interface PersonMatch {
   caseId: string
@@ -92,45 +68,6 @@ function stripTestimonyFromSuspects(investigation: InvestigationCase, testimonyI
   }
 }
 
-function FilterField({
-  label,
-  value,
-  onChange,
-  onClear,
-  listId,
-}: {
-  label: string
-  value: string
-  onChange: (v: string) => void
-  onClear: () => void
-  listId: string
-}) {
-  return (
-    <label className="flex flex-col gap-1">
-      <span className="text-[10px] font-medium tracking-wide text-stone-500 uppercase">{label}</span>
-      <div className="relative">
-        <input
-          type="text"
-          value={value}
-          list={listId}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-full rounded-md border border-stone-700 bg-stone-950/70 px-2.5 py-1.5 pr-7 text-sm text-stone-100 outline-none transition-colors focus:border-amber-600/60 focus:ring-1 focus:ring-amber-600/30"
-        />
-        {value && (
-          <button
-            type="button"
-            onClick={onClear}
-            title={`Limpar ${label}`}
-            className="absolute right-1.5 top-1/2 -translate-y-1/2 text-stone-500 hover:text-stone-200"
-          >
-            <X size={13} />
-          </button>
-        )}
-      </div>
-    </label>
-  )
-}
-
 export function CasosSection({
   character,
   update,
@@ -140,14 +77,17 @@ export function CasosSection({
 }) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const [subTab, setSubTabState] = useState<Record<string, 'testemunhas' | 'suspeitos'>>({})
-  const [filters, setFilters] = useState<FilterFields>(BLANK_FILTERS)
+  const [filters, setFilters] = useState<TraitFilters>(BLANK_TRAIT_FILTERS)
   const caseRefs = useRef(new Map<string, HTMLDivElement>())
 
   const toggleCollapsed = (id: string) => setCollapsed((prev) => ({ ...prev, [id]: !prev[id] }))
   const getSubTab = (id: string) => subTab[id] ?? 'testemunhas'
   const setSubTab = (id: string, tab: 'testemunhas' | 'suspeitos') => setSubTabState((prev) => ({ ...prev, [id]: tab }))
 
-  const traitSuggestions = useMemo(() => collectTraitSuggestions(character.cases), [character.cases])
+  const traitSuggestions = useMemo(
+    () => collectTraitSuggestions(character.cases.flatMap((cs) => [...cs.witnesses, ...cs.suspects]).map((p) => p.traits)),
+    [character.cases],
+  )
 
   const updateCase = (
     caseId: string,
@@ -233,7 +173,23 @@ export function CasosSection({
       }),
     }))
 
-  const hasActiveFilter = Object.values(filters).some((v) => v.trim() !== '')
+  const linkWitnessToBank = (caseId: string, witnessId: string, bankId: string) => {
+    const bankChar = character.characterBank.find((b) => b.id === bankId)
+    if (!bankChar) return
+    updateWitness(caseId, witnessId, { name: bankChar.name, traits: bankChar.traits, linkedCharacterId: bankId })
+  }
+  const unlinkWitnessFromBank = (caseId: string, witnessId: string) =>
+    updateWitness(caseId, witnessId, { linkedCharacterId: undefined })
+
+  const linkSuspectToBank = (caseId: string, suspectId: string, bankId: string) => {
+    const bankChar = character.characterBank.find((b) => b.id === bankId)
+    if (!bankChar) return
+    updateSuspect(caseId, suspectId, { name: bankChar.name, traits: bankChar.traits, linkedCharacterId: bankId })
+  }
+  const unlinkSuspectFromBank = (caseId: string, suspectId: string) =>
+    updateSuspect(caseId, suspectId, { linkedCharacterId: undefined })
+
+  const hasActiveFilter = hasActiveTraitFilter(filters)
 
   const filterResults: PersonMatch[] = hasActiveFilter
     ? character.cases.flatMap((cs) => {
@@ -242,12 +198,7 @@ export function CasosSection({
           ...cs.witnesses.map((w) => ({ caseId: cs.id, caseTitle, kind: 'witness' as const, id: w.id, name: w.name, traits: w.traits })),
           ...cs.suspects.map((s) => ({ caseId: cs.id, caseTitle, kind: 'suspect' as const, id: s.id, name: s.name, traits: s.traits })),
         ]
-        return people.filter((p) =>
-          FILTERABLE_TRAIT_FIELDS.every((field) => {
-            const query = filters[field].trim().toLowerCase()
-            return query === '' || p.traits[field].toLowerCase().includes(query)
-          }),
-        )
+        return people.filter((p) => matchesTraitFilters(p.traits, filters))
       })
     : []
 
@@ -289,7 +240,7 @@ export function CasosSection({
             </p>
             {hasActiveFilter && (
               <button
-                onClick={() => setFilters(BLANK_FILTERS)}
+                onClick={() => setFilters(BLANK_TRAIT_FILTERS)}
                 className="flex shrink-0 items-center gap-1 text-xs font-medium text-stone-500 hover:text-amber-400"
               >
                 <X size={12} /> Limpar filtros
@@ -464,11 +415,14 @@ export function CasosSection({
                             <WitnessCard
                               key={witness.id}
                               witness={witness}
+                              characterBank={character.characterBank}
                               onChange={(patch) => updateWitness(investigation.id, witness.id, patch)}
                               onAddTestimony={() => addTestimony(investigation.id, witness.id)}
                               onChangeTestimony={(tid, patch) => updateTestimony(investigation.id, witness.id, tid, patch)}
                               onRemoveTestimony={(tid) => removeTestimony(investigation.id, witness.id, tid)}
                               onRemove={() => removeWitness(investigation.id, witness.id)}
+                              onLinkBank={(bankId) => linkWitnessToBank(investigation.id, witness.id, bankId)}
+                              onUnlinkBank={() => unlinkWitnessFromBank(investigation.id, witness.id)}
                             />
                           ))}
                           <button
@@ -485,9 +439,12 @@ export function CasosSection({
                               key={suspect.id}
                               suspect={suspect}
                               witnesses={investigation.witnesses}
+                              characterBank={character.characterBank}
                               onChange={(patch) => updateSuspect(investigation.id, suspect.id, patch)}
                               onToggleSource={(field, tid) => toggleSource(investigation.id, suspect.id, field, tid)}
                               onRemove={() => removeSuspect(investigation.id, suspect.id)}
+                              onLinkBank={(bankId) => linkSuspectToBank(investigation.id, suspect.id, bankId)}
+                              onUnlinkBank={() => unlinkSuspectFromBank(investigation.id, suspect.id)}
                             />
                           ))}
                           <button
@@ -512,20 +469,27 @@ export function CasosSection({
 
 function WitnessCard({
   witness,
+  characterBank,
   onChange,
   onAddTestimony,
   onChangeTestimony,
   onRemoveTestimony,
   onRemove,
+  onLinkBank,
+  onUnlinkBank,
 }: {
   witness: Witness
+  characterBank: BankCharacter[]
   onChange: (patch: Partial<Witness>) => void
   onAddTestimony: () => void
   onChangeTestimony: (testimonyId: string, patch: Partial<Testimony>) => void
   onRemoveTestimony: (testimonyId: string) => void
   onRemove: () => void
+  onLinkBank: (bankId: string) => void
+  onUnlinkBank: () => void
 }) {
   const onTraitChange = (field: TraitField, value: string) => onChange({ traits: { ...witness.traits, [field]: value } })
+  const isLinked = !!witness.linkedCharacterId
 
   return (
     <motion.div
@@ -540,31 +504,50 @@ function WitnessCard({
         <input
           value={witness.name}
           onChange={(e) => onChange({ name: e.target.value })}
+          disabled={isLinked}
           placeholder="Nome da testemunha"
-          className="min-w-0 flex-1 rounded-md border border-stone-700 bg-stone-900 px-2 py-1.5 text-sm font-medium text-stone-100 outline-none focus:border-amber-600/60"
+          className="min-w-0 flex-1 rounded-md border border-stone-700 bg-stone-900 px-2 py-1.5 text-sm font-medium text-stone-100 outline-none focus:border-amber-600/60 disabled:text-stone-400"
         />
+        <BankLinkControl bank={characterBank} linkedId={witness.linkedCharacterId} onLink={onLinkBank} onUnlink={onUnlinkBank} />
         <button onClick={onRemove} className="shrink-0 text-stone-600 hover:text-red-500">
           <Trash2 size={13} />
         </button>
       </div>
 
-      <div className="mb-2.5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
-        {FILTERABLE_TRAIT_FIELDS.map((field) => (
-          <TextField
-            key={field}
-            label={TRAIT_FIELD_LABELS[field]}
-            value={witness.traits[field]}
-            onChange={(v) => onTraitChange(field, v)}
+      {isLinked ? (
+        <div className="mb-3 rounded-md border border-sky-900/40 bg-sky-950/20 px-3 py-2 text-xs text-stone-400">
+          <p className="mb-1 text-[10px] font-medium tracking-wide text-sky-500 uppercase">Traços do personagem vinculado</p>
+          <p>
+            {FILTERABLE_TRAIT_FIELDS.filter((f) => witness.traits[f])
+              .map((f) => `${TRAIT_FIELD_LABELS[f]}: ${witness.traits[f]}`)
+              .join(' · ') || 'Nenhum traço definido ainda.'}
+          </p>
+          {witness.traits.description && <p className="mt-1 italic text-stone-500">{witness.traits.description}</p>}
+          <p className="mt-1.5 text-[10px] text-stone-600">
+            Edite esses dados na aba Personagens — a mudança aparece em todo lugar onde ele está vinculado.
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="mb-2.5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
+            {FILTERABLE_TRAIT_FIELDS.map((field) => (
+              <TextField
+                key={field}
+                label={TRAIT_FIELD_LABELS[field]}
+                value={witness.traits[field]}
+                onChange={(v) => onTraitChange(field, v)}
+              />
+            ))}
+          </div>
+          <TextAreaField
+            label={TRAIT_FIELD_LABELS.description}
+            rows={2}
+            value={witness.traits.description}
+            onChange={(v) => onTraitChange('description', v)}
+            className="mb-3"
           />
-        ))}
-      </div>
-      <TextAreaField
-        label={TRAIT_FIELD_LABELS.description}
-        rows={2}
-        value={witness.traits.description}
-        onChange={(v) => onTraitChange('description', v)}
-        className="mb-3"
-      />
+        </>
+      )}
 
       <div className="flex flex-col gap-2">
         {witness.testimonies.map((t) => (
@@ -613,17 +596,24 @@ function WitnessCard({
 function SuspectCard({
   suspect,
   witnesses,
+  characterBank,
   onChange,
   onToggleSource,
   onRemove,
+  onLinkBank,
+  onUnlinkBank,
 }: {
   suspect: Suspect
   witnesses: Witness[]
+  characterBank: BankCharacter[]
   onChange: (patch: Partial<Suspect>) => void
   onToggleSource: (field: TraitField, testimonyId: string) => void
   onRemove: () => void
+  onLinkBank: (bankId: string) => void
+  onUnlinkBank: () => void
 }) {
   const onTraitChange = (field: TraitField, value: string) => onChange({ traits: { ...suspect.traits, [field]: value } })
+  const isLinked = !!suspect.linkedCharacterId
 
   return (
     <motion.div
@@ -638,38 +628,58 @@ function SuspectCard({
         <input
           value={suspect.name}
           onChange={(e) => onChange({ name: e.target.value })}
+          disabled={isLinked}
           placeholder="Nome (ou &quot;desconhecido&quot;)"
-          className="min-w-0 flex-1 rounded-md border border-stone-700 bg-stone-900 px-2 py-1.5 text-sm font-medium text-stone-100 outline-none focus:border-amber-600/60"
+          className="min-w-0 flex-1 rounded-md border border-stone-700 bg-stone-900 px-2 py-1.5 text-sm font-medium text-stone-100 outline-none focus:border-amber-600/60 disabled:text-stone-400"
         />
+        <BankLinkControl bank={characterBank} linkedId={suspect.linkedCharacterId} onLink={onLinkBank} onUnlink={onUnlinkBank} />
         <button onClick={onRemove} className="shrink-0 text-stone-600 hover:text-red-500">
           <Trash2 size={13} />
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
-        {FILTERABLE_TRAIT_FIELDS.map((field) => (
-          <SourcedField
-            key={field}
-            label={TRAIT_FIELD_LABELS[field]}
-            value={suspect.traits[field]}
-            onChange={(v) => onTraitChange(field, v)}
-            witnesses={witnesses}
-            selected={suspect.sources[field] ?? []}
-            onToggle={(tid) => onToggleSource(field, tid)}
-          />
-        ))}
-      </div>
+      {isLinked ? (
+        <div className="rounded-md border border-sky-900/40 bg-sky-950/20 px-3 py-2 text-xs text-stone-400">
+          <p className="mb-1 text-[10px] font-medium tracking-wide text-sky-500 uppercase">Traços do personagem vinculado</p>
+          <p>
+            {FILTERABLE_TRAIT_FIELDS.filter((f) => suspect.traits[f])
+              .map((f) => `${TRAIT_FIELD_LABELS[f]}: ${suspect.traits[f]}`)
+              .join(' · ') || 'Nenhum traço definido ainda.'}
+          </p>
+          {suspect.traits.description && <p className="mt-1 italic text-stone-500">{suspect.traits.description}</p>}
+          <p className="mt-1.5 text-[10px] text-stone-600">
+            Edite esses dados na aba Personagens — a mudança aparece em todo lugar onde ele está vinculado. Fontes por campo
+            ficam disponíveis de novo ao desvincular.
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
+            {FILTERABLE_TRAIT_FIELDS.map((field) => (
+              <SourcedField
+                key={field}
+                label={TRAIT_FIELD_LABELS[field]}
+                value={suspect.traits[field]}
+                onChange={(v) => onTraitChange(field, v)}
+                witnesses={witnesses}
+                selected={suspect.sources[field] ?? []}
+                onToggle={(tid) => onToggleSource(field, tid)}
+              />
+            ))}
+          </div>
 
-      <SourcedField
-        label={TRAIT_FIELD_LABELS.description}
-        textarea
-        value={suspect.traits.description}
-        onChange={(v) => onTraitChange('description', v)}
-        witnesses={witnesses}
-        selected={suspect.sources.description ?? []}
-        onToggle={(tid) => onToggleSource('description', tid)}
-        className="mt-2.5"
-      />
+          <SourcedField
+            label={TRAIT_FIELD_LABELS.description}
+            textarea
+            value={suspect.traits.description}
+            onChange={(v) => onTraitChange('description', v)}
+            witnesses={witnesses}
+            selected={suspect.sources.description ?? []}
+            onToggle={(tid) => onToggleSource('description', tid)}
+            className="mt-2.5"
+          />
+        </>
+      )}
     </motion.div>
   )
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { BookOpen, FolderSearch, ScrollText, Sparkles, Swords } from 'lucide-react'
+import { BookOpen, FolderSearch, ScrollText, Sparkles, Swords, Users } from 'lucide-react'
 import { TopBar } from './components/TopBar'
 import { Tabs, type TabDef } from './components/Tabs'
 import { ToastViewport } from './components/Toast'
@@ -9,6 +9,7 @@ import { CombateSection } from './components/sections/CombateSection'
 import { ConjuracaoSection } from './components/sections/ConjuracaoSection'
 import { AntecedenteSection } from './components/sections/AntecedenteSection'
 import { CasosSection } from './components/sections/CasosSection'
+import { PersonagensSection } from './components/sections/PersonagensSection'
 import { AttributesProvider } from './context/AttributesContext'
 import { useCharacterFile } from './hooks/useCharacterFile'
 import { useToasts } from './hooks/useToasts'
@@ -20,6 +21,7 @@ const TABS: TabDef[] = [
   { key: 'conjuracao', label: 'Conjuração', icon: <Sparkles size={15} /> },
   { key: 'antecedente', label: 'Antecedente', icon: <BookOpen size={15} /> },
   { key: 'casos', label: 'Casos', icon: <FolderSearch size={15} /> },
+  { key: 'personagens', label: 'Personagens', icon: <Users size={15} /> },
 ]
 
 function App() {
@@ -82,6 +84,7 @@ function App() {
               {tab === 'conjuracao' && <ConjuracaoSection character={character} update={updateCharacter} />}
               {tab === 'antecedente' && <AntecedenteSection character={character} update={updateCharacter} />}
               {tab === 'casos' && <CasosSection character={character} update={updateCharacter} />}
+              {tab === 'personagens' && <PersonagensSection character={character} update={updateCharacter} />}
             </motion.div>
           </AnimatePresence>
         </AttributesProvider>
