@@ -161,6 +161,8 @@ export interface InvestigationCase {
   status: CaseStatus
   witnesses: Witness[]
   suspects: Suspect[]
+  /** IDs of other cases this one is related to. Always kept symmetric: linking A to B also links B to A. */
+  relatedCaseIds: string[]
 }
 
 export function createTestimony(): Testimony {
@@ -183,6 +185,7 @@ export function createCase(): InvestigationCase {
     status: 'aberto',
     witnesses: [],
     suspects: [],
+    relatedCaseIds: [],
   }
 }
 

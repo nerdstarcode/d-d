@@ -50,7 +50,7 @@ export function CombateSection({
           <span />
         </div>
         <div className="flex flex-col gap-1.5">
-          {character.attacks.map((atk, i) => (
+          {character.attacks?.map((atk, i) => (
             <motion.div
               key={i}
               initial={{ opacity: 0, y: -4 }}
@@ -88,7 +88,7 @@ export function CombateSection({
 
       <Panel title="Moedas" className="lg:col-span-5" icon={<Coins size={13} className="text-amber-600" />}>
         <div className="grid grid-cols-5 gap-2">
-          {(Object.keys(CURRENCY_LABELS) as (keyof Currency)[]).map((key) => (
+          {(Object.keys(CURRENCY_LABELS) as (keyof Currency)[])?.map((key) => (
             <label key={key} className="flex flex-col items-center gap-1">
               <span className="text-[10px] font-medium text-stone-500">{CURRENCY_LABELS[key]}</span>
               <input
@@ -111,7 +111,7 @@ export function CombateSection({
             </button>
           </div>
           <div className="flex flex-col gap-1.5">
-            {character.equipment.map((item, i) => (
+            {character.equipment?.map((item, i) => (
               <motion.div
                 key={i}
                 initial={{ opacity: 0, y: -4 }}

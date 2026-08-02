@@ -17,7 +17,7 @@ export function Tabs({
 }) {
   return (
     <div className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-4 pt-3">
-      {tabs.map((tab) => {
+      {tabs?.map((tab) => {
         const isActive = tab.key === active
         return (
           <button

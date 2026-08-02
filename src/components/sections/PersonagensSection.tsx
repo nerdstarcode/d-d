@@ -30,7 +30,7 @@ export function PersonagensSection({
   const [filters, setFilters] = useState<TraitFilters>(BLANK_TRAIT_FILTERS)
   const hasActiveFilter = hasActiveTraitFilter(filters)
   const traitSuggestions = useMemo(
-    () => collectTraitSuggestions(character.characterBank.map((b) => b.traits)),
+    () => collectTraitSuggestions(character.characterBank?.map((b) => b.traits)),
     [character.characterBank],
   )
   const visibleBank = hasActiveFilter
@@ -41,16 +41,16 @@ export function PersonagensSection({
 
   const updateCharacter = (id: string, patch: Partial<BankCharacter>) =>
     update((c) => {
-      const characterBank = c.characterBank.map((b) => (b.id === id ? { ...b, ...patch } : b))
+      const characterBank = c.characterBank?.map((b) => (b.id === id ? { ...b, ...patch } : b))
       const updated = characterBank.find((b) => b.id === id)
       if (!updated) return { ...c, characterBank }
       // Every witness/suspect linked to this character mirrors its name and traits.
-      const cases = c.cases.map((cs) => ({
+      const cases = c.cases?.map((cs) => ({
         ...cs,
-        witnesses: cs.witnesses.map((w) =>
+        witnesses: cs.witnesses?.map((w) =>
           w.linkedCharacterId === id ? { ...w, name: updated.name, traits: updated.traits } : w,
         ),
-        suspects: cs.suspects.map((s) =>
+        suspects: cs.suspects?.map((s) =>
           s.linkedCharacterId === id ? { ...s, name: updated.name, traits: updated.traits } : s,
         ),
       }))
@@ -67,10 +67,10 @@ export function PersonagensSection({
     update((c) => ({
       ...c,
       characterBank: c.characterBank.filter((b) => b.id !== id),
-      cases: c.cases.map((cs) => ({
+      cases: c.cases?.map((cs) => ({
         ...cs,
-        witnesses: cs.witnesses.map((w) => (w.linkedCharacterId === id ? { ...w, linkedCharacterId: undefined } : w)),
-        suspects: cs.suspects.map((s) => (s.linkedCharacterId === id ? { ...s, linkedCharacterId: undefined } : s)),
+        witnesses: cs.witnesses?.map((w) => (w.linkedCharacterId === id ? { ...w, linkedCharacterId: undefined } : w)),
+        suspects: cs.suspects?.map((s) => (s.linkedCharacterId === id ? { ...s, linkedCharacterId: undefined } : s)),
       })),
     }))
   }
@@ -118,7 +118,7 @@ export function PersonagensSection({
             )}
           </div>
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
-            {FILTERABLE_TRAIT_FIELDS.map((field) => (
+            {FILTERABLE_TRAIT_FIELDS?.map((field) => (
               <FilterField
                 key={field}
                 label={TRAIT_FIELD_LABELS[field]}
@@ -129,9 +129,9 @@ export function PersonagensSection({
               />
             ))}
           </div>
-          {FILTERABLE_TRAIT_FIELDS.map((field) => (
+          {FILTERABLE_TRAIT_FIELDS?.map((field) => (
             <datalist key={field} id={traitSuggestionsListId(field)}>
-              {traitSuggestions[field].map((value) => (
+              {traitSuggestions[field]?.map((value) => (
                 <option key={value} value={value} />
               ))}
             </datalist>
@@ -154,7 +154,7 @@ export function PersonagensSection({
       )}
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        {visibleBank.map((bankChar) => (
+        {visibleBank?.map((bankChar) => (
           <Panel key={bankChar.id}>
             <div className="mb-2.5 flex items-center gap-2">
               <input
@@ -168,7 +168,7 @@ export function PersonagensSection({
               </button>
             </div>
             <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-              {FILTERABLE_TRAIT_FIELDS.map((field) => (
+              {FILTERABLE_TRAIT_FIELDS?.map((field) => (
                 <TextField
                   key={field}
                   label={TRAIT_FIELD_LABELS[field]}

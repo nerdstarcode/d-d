@@ -24,7 +24,7 @@ export function ToastViewport({ toasts, onDismiss }: { toasts: ToastItem[]; onDi
   return (
     <div className="pointer-events-none fixed inset-x-0 top-4 z-50 flex flex-col items-center gap-2 px-4 sm:left-auto sm:right-4 sm:items-end">
       <AnimatePresence>
-        {toasts.map((t) => {
+        {toasts?.map((t) => {
           const Icon = ICONS[t.variant]
           return (
             <motion.div

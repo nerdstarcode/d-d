@@ -21,7 +21,7 @@ export function ConjuracaoSection({
 
   const updateCantrip = (index: number, patch: Partial<Spell>) =>
     updateSpellcasting({
-      cantrips: sc.cantrips.map((s, i) => (i === index ? { ...s, ...patch } : s)),
+      cantrips: sc.cantrips?.map((s, i) => (i === index ? { ...s, ...patch } : s)),
     })
   const addCantrip = () => updateSpellcasting({ cantrips: [...sc.cantrips, { name: '', prepared: true }] })
   const removeCantrip = (index: number) => updateSpellcasting({ cantrips: sc.cantrips.filter((_, i) => i !== index) })
@@ -31,7 +31,7 @@ export function ConjuracaoSection({
 
   const updateSpell = (level: LevelKey, index: number, patch: Partial<Spell>) =>
     updateLevel(level, {
-      spells: sc.levels[level].spells.map((s, i) => (i === index ? { ...s, ...patch } : s)),
+      spells: sc.levels[level].spells?.map((s, i) => (i === index ? { ...s, ...patch } : s)),
     })
   const addSpell = (level: LevelKey) =>
     updateLevel(level, { spells: [...sc.levels[level].spells, { name: '', prepared: false }] })
@@ -51,7 +51,7 @@ export function ConjuracaoSection({
               className="rounded-md border border-stone-700 bg-stone-950/70 px-2.5 py-1.5 text-sm text-stone-100 outline-none focus:border-amber-600/60"
             >
               <option value="">—</option>
-              {(Object.keys(ABILITY_LABELS) as AbilityKey[]).map((k) => (
+              {(Object.keys(ABILITY_LABELS) as AbilityKey[])?.map((k) => (
                 <option key={k} value={k}>
                   {ABILITY_LABELS[k]}
                 </option>
@@ -81,7 +81,7 @@ export function ConjuracaoSection({
         />
       </Panel>
 
-      {LEVELS.map((level) => {
+      {LEVELS?.map((level) => {
         const lvl = sc.levels[level]
         return (
           <Panel key={level} title={`Círculo ${level}`} className="lg:col-span-4">
@@ -130,7 +130,7 @@ function SpellList({
   return (
     <div>
       <div className="flex flex-col gap-1.5">
-        {spells.map((spell, i) => {
+        {spells?.map((spell, i) => {
           const isOpen = !!expanded[i]
           const hasDescription = !!spell.description?.trim()
           return (

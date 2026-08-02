@@ -1,26 +1,36 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'motion/react'
-import { Link2, Users, X } from 'lucide-react'
-import type { BankCharacter } from '../types/character'
+import { Link2, Plus, X } from 'lucide-react'
 
 const MENU_WIDTH = 240
 
-export function BankLinkControl({
-  bank,
-  linkedId,
+export interface CaseOption {
+  id: string
+  title: string
+}
+
+export function RelatedCasesControl({
+  allCases,
+  currentCaseId,
+  relatedIds,
   onLink,
   onUnlink,
+  onJump,
 }: {
-  bank: BankCharacter[]
-  linkedId?: string
-  onLink: (bankId: string) => void
-  onUnlink: () => void
+  allCases: CaseOption[]
+  currentCaseId: string
+  relatedIds: string[]
+  onLink: (caseId: string) => void
+  onUnlink: (caseId: string) => void
+  onJump: (caseId: string) => void
 }) {
   const [open, setOpen] = useState(false)
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
-  const linked = bank.find((b) => b.id === linkedId)
+
+  const relatedCases = relatedIds?.map((id) => allCases.find((c) => c.id === id)).filter((c): c is CaseOption => !!c)
+  const candidates = allCases.filter((c) => c.id !== currentCaseId && !relatedIds.includes(c.id))
 
   const openMenu = () => {
     const rect = btnRef.current?.getBoundingClientRect()
@@ -49,28 +59,32 @@ export function BankLinkControl({
     }
   }, [open])
 
-  if (linked) {
-    return (
-      <div className="flex shrink-0 items-center gap-1.5 rounded-md border border-sky-700/50 bg-sky-950/40 px-2 py-1 text-[11px] text-sky-300">
-        <Link2 size={11} />
-        <span className="max-w-[8rem] truncate">{linked.name || 'Sem nome'}</span>
-        <button type="button" onClick={onUnlink} title="Desvincular do banco" className="text-sky-500 hover:text-sky-200">
-          <X size={12} />
-        </button>
-      </div>
-    )
-  }
-
   return (
-    <>
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="flex shrink-0 items-center gap-1 text-[10px] font-medium tracking-wide text-stone-500 uppercase">
+        <Link2 size={11} /> Casos relacionados
+      </span>
+      {relatedCases?.map((rc) => (
+        <span
+          key={rc.id}
+          className="flex items-center gap-1 rounded-md border border-sky-700/50 bg-sky-950/40 px-2 py-1 text-[11px] text-sky-300"
+        >
+          <button type="button" onClick={() => onJump(rc.id)} className="hover:underline">
+            {rc.title || 'Caso sem título'}
+          </button>
+          <button type="button" onClick={() => onUnlink(rc.id)} title="Desvincular" className="text-sky-500 hover:text-sky-200">
+            <X size={11} />
+          </button>
+        </span>
+      ))}
       <button
         ref={btnRef}
         type="button"
         onClick={() => (open ? setOpen(false) : openMenu())}
-        title="Vincular a um personagem do banco"
+        title="Vincular a outro caso"
         className="flex shrink-0 items-center gap-1 rounded-md border border-stone-700 px-2 py-1 text-[11px] font-medium text-stone-500 transition-colors hover:text-stone-300"
       >
-        <Users size={11} /> Vincular
+        <Plus size={11} /> Vincular
       </button>
       {open &&
         coords &&
@@ -84,24 +98,21 @@ export function BankLinkControl({
               style={{ position: 'fixed', top: coords.top, left: coords.left, width: MENU_WIDTH }}
               className="z-50 rounded-lg border border-stone-700 bg-stone-900 p-2 shadow-xl shadow-black/40"
             >
-              <p className="mb-1.5 px-1 text-[10px] font-medium tracking-wide text-stone-500 uppercase">
-                Personagens do banco
-              </p>
-              {bank.length === 0 ? (
-                <p className="px-1 py-2 text-xs text-stone-600">Nenhum personagem salvo ainda. Crie um na aba Personagens.</p>
+              <p className="mb-1.5 px-1 text-[10px] font-medium tracking-wide text-stone-500 uppercase">Vincular a</p>
+              {candidates.length === 0 ? (
+                <p className="px-1 py-2 text-xs text-stone-600">Nenhum outro caso disponível pra vincular ainda.</p>
               ) : (
                 <div className="flex max-h-52 flex-col gap-0.5 overflow-y-auto">
-                  {bank?.map((b) => (
+                  {candidates?.map((c) => (
                     <button
-                      key={b.id}
+                      key={c.id}
                       onClick={() => {
-                        onLink(b.id)
+                        onLink(c.id)
                         setOpen(false)
                       }}
                       className="rounded-md px-1.5 py-1.5 text-left text-xs text-stone-300 hover:bg-stone-800/60"
                     >
-                      <span className="font-medium text-stone-200">{b.name || 'Sem nome'}</span>
-                      {b.traits.hairColor && <span className="text-stone-500"> · {b.traits.hairColor}</span>}
+                      {c.title || 'Caso sem título'}
                     </button>
                   ))}
                 </div>
@@ -110,6 +121,6 @@ export function BankLinkControl({
           </>,
           document.body,
         )}
-    </>
+    </div>
   )
 }

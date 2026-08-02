@@ -29,6 +29,7 @@ import {
 } from '../../lib/traitFilter'
 import { BankLinkControl } from '../BankLinkControl'
 import { FilterField } from '../FilterField'
+import { RelatedCasesControl } from '../RelatedCasesControl'
 import { Panel, TextAreaField, TextField } from '../ui'
 
 const STATUS_OPTIONS: { value: CaseStatus; label: string; classes: string }[] = [
@@ -51,7 +52,7 @@ function stripTestimonyFromSuspects(investigation: InvestigationCase, testimonyI
   const idSet = new Set(testimonyIds)
   return {
     ...investigation,
-    suspects: investigation.suspects.map((s) => {
+    suspects: investigation.suspects?.map((s) => {
       let changed = false
       const sources = { ...s.sources }
       for (const key of Object.keys(sources) as TraitField[]) {
@@ -92,7 +93,7 @@ export function CasosSection({
   const setSubTab = (id: string, tab: 'testemunhas' | 'suspeitos') => setSubTabState((prev) => ({ ...prev, [id]: tab }))
 
   const traitSuggestions = useMemo(
-    () => collectTraitSuggestions(character.cases.flatMap((cs) => [...cs.witnesses, ...cs.suspects]).map((p) => p.traits)),
+    () => collectTraitSuggestions(character.cases.flatMap((cs) => [...cs.witnesses, ...cs.suspects])?.map((p) => p.traits)),
     [character.cases],
   )
 
@@ -102,7 +103,7 @@ export function CasosSection({
   ) =>
     update((c) => ({
       ...c,
-      cases: c.cases.map((cs) => (cs.id === caseId ? (typeof patch === 'function' ? patch(cs) : { ...cs, ...patch }) : cs)),
+      cases: c.cases?.map((cs) => (cs.id === caseId ? (typeof patch === 'function' ? patch(cs) : { ...cs, ...patch }) : cs)),
     }))
 
   const addCase = () => {
@@ -113,36 +114,66 @@ export function CasosSection({
 
   const removeCase = (id: string) => {
     if (!confirm('Remover este caso, suas testemunhas e suspeitos?')) return
-    update((c) => ({ ...c, cases: c.cases.filter((cs) => cs.id !== id) }))
+    update((c) => ({
+      ...c,
+      cases: c.cases
+        .filter((cs) => cs.id !== id)
+        ?.map((cs) => ({ ...cs, relatedCaseIds: cs.relatedCaseIds.filter((rid) => rid !== id) })),
+    }))
   }
+
+  // Relations are always symmetric: linking/unlinking A<->B touches both cases' lists.
+  const linkRelatedCase = (caseId: string, otherCaseId: string) =>
+    update((c) => ({
+      ...c,
+      cases: c.cases?.map((cs) => {
+        if (cs.id === caseId && !cs.relatedCaseIds.includes(otherCaseId)) {
+          return { ...cs, relatedCaseIds: [...cs.relatedCaseIds, otherCaseId] }
+        }
+        if (cs.id === otherCaseId && !cs.relatedCaseIds.includes(caseId)) {
+          return { ...cs, relatedCaseIds: [...cs.relatedCaseIds, caseId] }
+        }
+        return cs
+      }),
+    }))
+
+  const unlinkRelatedCase = (caseId: string, otherCaseId: string) =>
+    update((c) => ({
+      ...c,
+      cases: c.cases?.map((cs) => {
+        if (cs.id === caseId) return { ...cs, relatedCaseIds: cs.relatedCaseIds.filter((rid) => rid !== otherCaseId) }
+        if (cs.id === otherCaseId) return { ...cs, relatedCaseIds: cs.relatedCaseIds.filter((rid) => rid !== caseId) }
+        return cs
+      }),
+    }))
 
   const addWitness = (caseId: string) => updateCase(caseId, (cs) => ({ ...cs, witnesses: [...cs.witnesses, createWitness()] }))
 
   const updateWitness = (caseId: string, witnessId: string, patch: Partial<Witness>) =>
     updateCase(caseId, (cs) => ({
       ...cs,
-      witnesses: cs.witnesses.map((w) => (w.id === witnessId ? { ...w, ...patch } : w)),
+      witnesses: cs.witnesses?.map((w) => (w.id === witnessId ? { ...w, ...patch } : w)),
     }))
 
   const removeWitness = (caseId: string, witnessId: string) =>
     updateCase(caseId, (cs) => {
       const witness = cs.witnesses.find((w) => w.id === witnessId)
-      const stripped = stripTestimonyFromSuspects(cs, witness?.testimonies.map((t) => t.id) ?? [])
+      const stripped = stripTestimonyFromSuspects(cs, witness?.testimonies?.map((t) => t.id) ?? [])
       return { ...stripped, witnesses: stripped.witnesses.filter((w) => w.id !== witnessId) }
     })
 
   const addTestimony = (caseId: string, witnessId: string) =>
     updateCase(caseId, (cs) => ({
       ...cs,
-      witnesses: cs.witnesses.map((w) => (w.id === witnessId ? { ...w, testimonies: [...w.testimonies, createTestimony()] } : w)),
+      witnesses: cs.witnesses?.map((w) => (w.id === witnessId ? { ...w, testimonies: [...w.testimonies, createTestimony()] } : w)),
     }))
 
   const updateTestimony = (caseId: string, witnessId: string, testimonyId: string, patch: Partial<Testimony>) =>
     updateCase(caseId, (cs) => ({
       ...cs,
-      witnesses: cs.witnesses.map((w) =>
+      witnesses: cs.witnesses?.map((w) =>
         w.id === witnessId
-          ? { ...w, testimonies: w.testimonies.map((t) => (t.id === testimonyId ? { ...t, ...patch } : t)) }
+          ? { ...w, testimonies: w.testimonies?.map((t) => (t.id === testimonyId ? { ...t, ...patch } : t)) }
           : w,
       ),
     }))
@@ -152,7 +183,7 @@ export function CasosSection({
       const stripped = stripTestimonyFromSuspects(cs, [testimonyId])
       return {
         ...stripped,
-        witnesses: stripped.witnesses.map((w) =>
+        witnesses: stripped.witnesses?.map((w) =>
           w.id === witnessId ? { ...w, testimonies: w.testimonies.filter((t) => t.id !== testimonyId) } : w,
         ),
       }
@@ -163,7 +194,7 @@ export function CasosSection({
   const updateSuspect = (caseId: string, suspectId: string, patch: Partial<Suspect>) =>
     updateCase(caseId, (cs) => ({
       ...cs,
-      suspects: cs.suspects.map((s) => (s.id === suspectId ? { ...s, ...patch } : s)),
+      suspects: cs.suspects?.map((s) => (s.id === suspectId ? { ...s, ...patch } : s)),
     }))
 
   const removeSuspect = (caseId: string, suspectId: string) =>
@@ -172,7 +203,7 @@ export function CasosSection({
   const toggleSource = (caseId: string, suspectId: string, field: TraitField, testimonyId: string) =>
     updateCase(caseId, (cs) => ({
       ...cs,
-      suspects: cs.suspects.map((s) => {
+      suspects: cs.suspects?.map((s) => {
         if (s.id !== suspectId) return s
         const current = s.sources[field] ?? []
         const next = current.includes(testimonyId) ? current.filter((id) => id !== testimonyId) : [...current, testimonyId]
@@ -202,19 +233,23 @@ export function CasosSection({
     ? character.cases.flatMap((cs) => {
         const caseTitle = cs.title || 'Caso sem título'
         const people: PersonMatch[] = [
-          ...cs.witnesses.map((w) => ({ caseId: cs.id, caseTitle, kind: 'witness' as const, id: w.id, name: w.name, traits: w.traits })),
-          ...cs.suspects.map((s) => ({ caseId: cs.id, caseTitle, kind: 'suspect' as const, id: s.id, name: s.name, traits: s.traits })),
+          ...cs.witnesses?.map((w) => ({ caseId: cs.id, caseTitle, kind: 'witness' as const, id: w.id, name: w.name, traits: w.traits })),
+          ...cs.suspects?.map((s) => ({ caseId: cs.id, caseTitle, kind: 'suspect' as const, id: s.id, name: s.name, traits: s.traits })),
         ]
         return people.filter((p) => matchesTraitFilters(p.traits, filters))
       })
     : []
 
-  const jumpToPerson = (match: PersonMatch) => {
-    setCollapsed((prev) => ({ ...prev, [match.caseId]: false }))
-    setSubTab(match.caseId, match.kind === 'witness' ? 'testemunhas' : 'suspeitos')
+  const jumpToCase = (caseId: string) => {
+    setCollapsed((prev) => ({ ...prev, [caseId]: false }))
     requestAnimationFrame(() => {
-      caseRefs.current.get(match.caseId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      caseRefs.current.get(caseId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     })
+  }
+
+  const jumpToPerson = (match: PersonMatch) => {
+    setSubTab(match.caseId, match.kind === 'witness' ? 'testemunhas' : 'suspeitos')
+    jumpToCase(match.caseId)
   }
 
   return (
@@ -255,7 +290,7 @@ export function CasosSection({
             )}
           </div>
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
-            {FILTERABLE_TRAIT_FIELDS.map((field) => (
+            {FILTERABLE_TRAIT_FIELDS?.map((field) => (
               <FilterField
                 key={field}
                 label={TRAIT_FIELD_LABELS[field]}
@@ -266,9 +301,9 @@ export function CasosSection({
               />
             ))}
           </div>
-          {FILTERABLE_TRAIT_FIELDS.map((field) => (
+          {FILTERABLE_TRAIT_FIELDS?.map((field) => (
             <datalist key={field} id={traitSuggestionsListId(field)}>
-              {traitSuggestions[field].map((value) => (
+              {traitSuggestions[field]?.map((value) => (
                 <option key={value} value={value} />
               ))}
             </datalist>
@@ -284,7 +319,7 @@ export function CasosSection({
                 <p className="text-sm text-stone-600">Nenhuma testemunha ou suspeito bate com esses traços.</p>
               ) : (
                 <div className="flex flex-col gap-1.5">
-                  {filterResults.map((m) => (
+                  {filterResults?.map((m) => (
                     <button
                       key={`${m.caseId}-${m.id}`}
                       onClick={() => jumpToPerson(m)}
@@ -299,7 +334,7 @@ export function CasosSection({
                       <span className="text-stone-600">· {m.caseTitle}</span>
                       <span className="text-stone-500">
                         {FILTERABLE_TRAIT_FIELDS.filter((f) => m.traits[f])
-                          .map((f) => `${TRAIT_FIELD_LABELS[f]}: ${m.traits[f]}`)
+                          ?.map((f) => `${TRAIT_FIELD_LABELS[f]}: ${m.traits[f]}`)
                           .join(' · ')}
                       </span>
                     </button>
@@ -321,7 +356,7 @@ export function CasosSection({
       )}
 
       <AnimatePresence initial={false}>
-        {character.cases.map((investigation) => {
+        {character.cases?.map((investigation) => {
           const isCollapsed = !!collapsed[investigation.id]
           const status = STATUS_OPTIONS.find((s) => s.value === investigation.status) ?? STATUS_OPTIONS[0]
           const activeSubTab = getSubTab(investigation.id)
@@ -358,7 +393,7 @@ export function CasosSection({
                   onChange={(e) => updateCase(investigation.id, { status: e.target.value as CaseStatus })}
                   className={`rounded-md border px-2 py-1 text-[11px] font-medium outline-none ${status.classes}`}
                 >
-                  {STATUS_OPTIONS.map((opt) => (
+                  {STATUS_OPTIONS?.map((opt) => (
                     <option key={opt.value} value={opt.value} className="bg-stone-900 text-stone-200">
                       {opt.label}
                     </option>
@@ -389,8 +424,17 @@ export function CasosSection({
                         onChange={(v) => updateCase(investigation.id, { summary: v })}
                       />
 
+                      <RelatedCasesControl
+                        allCases={character.cases?.map((cs) => ({ id: cs.id, title: cs.title }))}
+                        currentCaseId={investigation.id}
+                        relatedIds={investigation.relatedCaseIds}
+                        onLink={(otherId) => linkRelatedCase(investigation.id, otherId)}
+                        onUnlink={(otherId) => unlinkRelatedCase(investigation.id, otherId)}
+                        onJump={jumpToCase}
+                      />
+
                       <div className="flex gap-1 border-b border-stone-800">
-                        {(['testemunhas', 'suspeitos'] as const).map((key) => {
+                        {(['testemunhas', 'suspeitos'] as const)?.map((key) => {
                           const active = activeSubTab === key
                           const count = key === 'testemunhas' ? investigation.witnesses.length : investigation.suspects.length
                           return (
@@ -418,7 +462,7 @@ export function CasosSection({
 
                       {activeSubTab === 'testemunhas' ? (
                         <div className="flex flex-col gap-3">
-                          {investigation.witnesses.map((witness) => (
+                          {investigation.witnesses?.map((witness) => (
                             <WitnessCard
                               key={witness.id}
                               witness={witness}
@@ -441,7 +485,7 @@ export function CasosSection({
                         </div>
                       ) : (
                         <div className="flex flex-col gap-3">
-                          {investigation.suspects.map((suspect) => (
+                          {investigation.suspects?.map((suspect) => (
                             <SuspectCard
                               key={suspect.id}
                               suspect={suspect}
@@ -526,7 +570,7 @@ function WitnessCard({
           <p className="mb-1 text-[10px] font-medium tracking-wide text-sky-500 uppercase">Traços do personagem vinculado</p>
           <p>
             {FILTERABLE_TRAIT_FIELDS.filter((f) => witness.traits[f])
-              .map((f) => `${TRAIT_FIELD_LABELS[f]}: ${witness.traits[f]}`)
+              ?.map((f) => `${TRAIT_FIELD_LABELS[f]}: ${witness.traits[f]}`)
               .join(' · ') || 'Nenhum traço definido ainda.'}
           </p>
           {witness.traits.description && <p className="mt-1 italic text-stone-500">{witness.traits.description}</p>}
@@ -537,7 +581,7 @@ function WitnessCard({
       ) : (
         <>
           <div className="mb-2.5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
-            {FILTERABLE_TRAIT_FIELDS.map((field) => (
+            {FILTERABLE_TRAIT_FIELDS?.map((field) => (
               <TextField
                 key={field}
                 label={TRAIT_FIELD_LABELS[field]}
@@ -557,7 +601,7 @@ function WitnessCard({
       )}
 
       <div className="flex flex-col gap-2">
-        {witness.testimonies.map((t) => (
+        {witness.testimonies?.map((t) => (
           <motion.div
             key={t.id}
             layout
@@ -667,7 +711,7 @@ function SuspectCard({
           <p className="mb-1 text-[10px] font-medium tracking-wide text-sky-500 uppercase">Traços do personagem vinculado</p>
           <p>
             {FILTERABLE_TRAIT_FIELDS.filter((f) => suspect.traits[f])
-              .map((f) => `${TRAIT_FIELD_LABELS[f]}: ${suspect.traits[f]}`)
+              ?.map((f) => `${TRAIT_FIELD_LABELS[f]}: ${suspect.traits[f]}`)
               .join(' · ') || 'Nenhum traço definido ainda.'}
           </p>
           {suspect.traits.description && <p className="mt-1 italic text-stone-500">{suspect.traits.description}</p>}
@@ -679,7 +723,7 @@ function SuspectCard({
       ) : (
         <>
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
-            {FILTERABLE_TRAIT_FIELDS.map((field) => (
+            {FILTERABLE_TRAIT_FIELDS?.map((field) => (
               <SourcedField
                 key={field}
                 label={TRAIT_FIELD_LABELS[field]}
@@ -765,7 +809,7 @@ function SourceLinker({
   const [open, setOpen] = useState(false)
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
-  const allTestimonies = witnesses.flatMap((w) => w.testimonies.map((t) => ({ witnessName: w.name || 'Sem nome', testimony: t })))
+  const allTestimonies = witnesses.flatMap((w) => w.testimonies?.map((t) => ({ witnessName: w.name || 'Sem nome', testimony: t })))
   const MENU_WIDTH = 256
 
   const openMenu = () => {
@@ -830,7 +874,7 @@ function SourceLinker({
                 <p className="px-1 py-2 text-xs text-stone-600">Nenhum testemunho registrado neste caso ainda.</p>
               ) : (
                 <div className="flex max-h-52 flex-col gap-0.5 overflow-y-auto">
-                  {allTestimonies.map(({ witnessName, testimony }) => (
+                  {allTestimonies?.map(({ witnessName, testimony }) => (
                     <label
                       key={testimony.id}
                       className="flex cursor-pointer items-start gap-2 rounded-md px-1.5 py-1 hover:bg-stone-800/60"

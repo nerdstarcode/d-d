@@ -41,7 +41,7 @@ export function PrincipalSection({
       {/* Abilities */}
       <Panel title="Atributos" className="lg:col-span-3">
         <div className="grid grid-cols-3 gap-2 lg:grid-cols-2">
-          {ABILITY_ORDER.map((key) => {
+          {ABILITY_ORDER?.map((key) => {
             const score = attrs.score(key)
             const mod = attrs.modifier(key)
             return (
@@ -73,7 +73,7 @@ export function PrincipalSection({
       {/* Saving throws */}
       <Panel title="Salvaguardas" className="lg:col-span-3">
         <div className="flex flex-col gap-2">
-          {ABILITY_ORDER.map((key) => {
+          {ABILITY_ORDER?.map((key) => {
             const prof = attrs.isSavingThrowProficient(key)
             const mod = attrs.savingThrowModifier(key)
             return (
@@ -96,7 +96,7 @@ export function PrincipalSection({
       {/* Skills */}
       <Panel title="Perícias" className="lg:col-span-6">
         <div className="grid grid-cols-1 gap-x-4 gap-y-1.5 sm:grid-cols-2">
-          {SKILL_DEFS.map((skill) => {
+          {SKILL_DEFS?.map((skill) => {
             const prof = attrs.isSkillProficient(skill.key)
             const mod = attrs.skillModifier(skill.key)
             return (
@@ -257,7 +257,7 @@ function DeathPips({
     <div className="flex flex-col gap-1">
       <span className="text-[9px] text-stone-500">{label}</span>
       <div className="flex gap-1">
-        {[0, 1, 2].map((i) => {
+        {[0, 1, 2]?.map((i) => {
           const filled = i < count
           return (
             <button
