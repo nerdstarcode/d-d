@@ -86,6 +86,52 @@ export interface DeathSaves {
   failures: number
 }
 
+export interface PersonOfInterest {
+  id: string
+  name: string
+  role: string
+  size: string
+  gender: string
+  hairColor: string
+  hairType: string
+  eyeColor: string
+  description: string
+}
+
+export type CaseStatus = 'aberto' | 'resolvido' | 'arquivado'
+
+export interface InvestigationCase {
+  id: string
+  title: string
+  summary: string
+  status: CaseStatus
+  people: PersonOfInterest[]
+}
+
+export function createPerson(): PersonOfInterest {
+  return {
+    id: crypto.randomUUID(),
+    name: '',
+    role: '',
+    size: '',
+    gender: '',
+    hairColor: '',
+    hairType: '',
+    eyeColor: '',
+    description: '',
+  }
+}
+
+export function createCase(): InvestigationCase {
+  return {
+    id: crypto.randomUUID(),
+    title: '',
+    summary: '',
+    status: 'aberto',
+    people: [],
+  }
+}
+
 export interface Character {
   name: string
   class: string
@@ -142,6 +188,8 @@ export interface Character {
   additionalFeatures: string
   backstory: string
   treasure: string
+
+  cases: InvestigationCase[]
 }
 
 export function emptySpellLevel(): SpellLevel {
@@ -221,6 +269,7 @@ export function createBlankCharacter(): Character {
     additionalFeatures: '',
     backstory: '',
     treasure: '',
+    cases: [],
   }
 }
 
