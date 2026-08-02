@@ -128,10 +128,10 @@ export function CasosSection({
       ...c,
       cases: c.cases?.map((cs) => {
         if (cs.id === caseId && !cs.relatedCaseIds?.includes(otherCaseId)) {
-          return { ...cs, relatedCaseIds: [...cs.relatedCaseIds, otherCaseId] }
+          return { ...cs, relatedCaseIds: [...(cs.relatedCaseIds ?? []), otherCaseId] }
         }
         if (cs.id === otherCaseId && !cs.relatedCaseIds?.includes(caseId)) {
-          return { ...cs, relatedCaseIds: [...cs.relatedCaseIds, caseId] }
+          return { ...cs, relatedCaseIds: [...(cs.relatedCaseIds ?? []), caseId] }
         }
         return cs
       }),
@@ -231,13 +231,13 @@ export function CasosSection({
 
   const filterResults: PersonMatch[] = hasActiveFilter
     ? character.cases.flatMap((cs) => {
-        const caseTitle = cs.title || 'Caso sem título'
-        const people: PersonMatch[] = [
-          ...cs.witnesses?.map((w) => ({ caseId: cs.id, caseTitle, kind: 'witness' as const, id: w.id, name: w.name, traits: w.traits })),
-          ...cs.suspects?.map((s) => ({ caseId: cs.id, caseTitle, kind: 'suspect' as const, id: s.id, name: s.name, traits: s.traits })),
-        ]
-        return people.filter((p) => matchesTraitFilters(p.traits, filters))
-      })
+      const caseTitle = cs.title || 'Caso sem título'
+      const people: PersonMatch[] = [
+        ...cs.witnesses?.map((w) => ({ caseId: cs.id, caseTitle, kind: 'witness' as const, id: w.id, name: w.name, traits: w.traits })),
+        ...cs.suspects?.map((s) => ({ caseId: cs.id, caseTitle, kind: 'suspect' as const, id: s.id, name: s.name, traits: s.traits })),
+      ]
+      return people.filter((p) => matchesTraitFilters(p.traits, filters))
+    })
     : []
 
   const jumpToCase = (caseId: string) => {
@@ -441,9 +441,8 @@ export function CasosSection({
                             <button
                               key={key}
                               onClick={() => setSubTab(investigation.id, key)}
-                              className={`relative flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${
-                                active ? 'text-amber-400' : 'text-stone-500 hover:text-stone-300'
-                              }`}
+                              className={`relative flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${active ? 'text-amber-400' : 'text-stone-500 hover:text-stone-300'
+                                }`}
                             >
                               {key === 'testemunhas' ? <Eye size={13} /> : <UserRoundSearch size={13} />}
                               {key === 'testemunhas' ? 'Testemunhas' : 'Suspeitos'}
@@ -846,11 +845,10 @@ function SourceLinker({
         type="button"
         onClick={() => (open ? setOpen(false) : openMenu())}
         title="Testemunhos que confirmam este dado"
-        className={`flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
-          selected.length > 0
+        className={`flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-medium transition-colors ${selected.length > 0
             ? 'border-sky-700/50 bg-sky-950/50 text-sky-400'
             : 'border-stone-700 text-stone-500 hover:text-stone-300'
-        }`}
+          }`}
       >
         <Link2 size={11} />
         {selected.length > 0 ? selected.length : 'Fonte'}
