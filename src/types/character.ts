@@ -91,6 +91,8 @@ export interface Testimony {
   where: string
   when: string
   what: string
+  /** How trustworthy this specific account seems, 0 (not at all) to 10 (fully reliable). */
+  reliability: number
 }
 
 /** The physical-description fields shared by witnesses and suspects, so the two can be compared and searched the same way. */
@@ -162,7 +164,7 @@ export interface InvestigationCase {
 }
 
 export function createTestimony(): Testimony {
-  return { id: crypto.randomUUID(), where: '', when: '', what: '' }
+  return { id: crypto.randomUUID(), where: '', when: '', what: '', reliability: 5 }
 }
 
 export function createWitness(): Witness {

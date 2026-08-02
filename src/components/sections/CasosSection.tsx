@@ -68,6 +68,13 @@ function stripTestimonyFromSuspects(investigation: InvestigationCase, testimonyI
   }
 }
 
+/** Badge colors for a testimony's 0-10 reliability rating: red (unreliable) through emerald (trustworthy). */
+function reliabilityBadgeClasses(value: number): string {
+  if (value <= 3) return 'border-red-700/50 bg-red-950/50 text-red-400'
+  if (value <= 6) return 'border-amber-700/50 bg-amber-950/50 text-amber-400'
+  return 'border-emerald-700/50 bg-emerald-950/50 text-emerald-400'
+}
+
 export function CasosSection({
   character,
   update,
@@ -583,6 +590,23 @@ function WitnessCard({
               rows={2}
               className="w-full resize-none rounded-md border border-stone-700 bg-stone-950 px-2 py-1.5 text-xs leading-relaxed text-stone-200 outline-none focus:border-amber-600/60"
             />
+            <div className="mt-2 flex items-center gap-2">
+              <span className="shrink-0 text-[10px] font-medium tracking-wide text-stone-500 uppercase">Confiabilidade</span>
+              <input
+                type="range"
+                min={0}
+                max={10}
+                step={1}
+                value={t.reliability ?? 5}
+                onChange={(e) => onChangeTestimony(t.id, { reliability: e.target.valueAsNumber })}
+                className="h-1.5 flex-1 accent-amber-500"
+              />
+              <span
+                className={`shrink-0 rounded-md border px-1.5 py-0.5 font-mono text-[11px] font-semibold ${reliabilityBadgeClasses(t.reliability ?? 5)}`}
+              >
+                {t.reliability ?? 5}
+              </span>
+            </div>
           </motion.div>
         ))}
       </div>
