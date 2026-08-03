@@ -15,13 +15,13 @@ export const BLANK_TRAIT_FILTERS: TraitFilters = {
 export const traitSuggestionsListId = (field: FilterableTraitField) => `trait-suggestions-${field}`
 
 export function hasActiveTraitFilter(filters: TraitFilters): boolean {
-  return Object.values(filters).some((v) => v.trim() !== '')
+  return Object.values(filters).some((v) => v?.trim() !== '')
 }
 
 /** Whether every non-empty filter field is a case-insensitive substring match of the corresponding trait. */
 export function matchesTraitFilters(traits: PhysicalTraits, filters: TraitFilters): boolean {
   return FILTERABLE_TRAIT_FIELDS.every((field) => {
-    const query = filters[field].trim().toLowerCase()
+    const query = filters[field]?.trim().toLowerCase()
     return query === '' || traits[field].toLowerCase()?.includes(query)
   })
 }
@@ -37,7 +37,7 @@ export function collectTraitSuggestions(peopleTraits: PhysicalTraits[]): Record<
   }
   for (const traits of peopleTraits) {
     for (const field of FILTERABLE_TRAIT_FIELDS) {
-      const value = traits[field].trim()
+      const value = traits[field]?.trim()
       if (value) seen[field].add(value)
     }
   }

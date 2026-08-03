@@ -89,10 +89,13 @@ export function CasosSection({
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const [subTab, setSubTabState] = useState<Record<string, 'testemunhas' | 'suspeitos'>>({})
   const [filters, setFilters] = useState<TraitFilters>(BLANK_TRAIT_FILTERS)
+  const [caseSearch, setCaseSearch] = useState({ title: '', date: '' })
   const { exportData, importData } = useInvestigationData(character, update, onNotify)
   const caseRefs = useRef(new Map<string, HTMLDivElement>())
 
-  const toggleCollapsed = (id: string) => setCollapsed((prev) => ({ ...prev, [id]: !prev[id] }))
+  // Cases start collapsed unless the user has explicitly toggled one open or closed.
+  const toggleCollapsed = (id: string) => setCollapsed((prev) => ({ ...prev, [id]: !(prev[id] ?? true) }))
+  const isCaseCollapsed = (id: string) => collapsed[id] ?? true
   const getSubTab = (id: string) => subTab[id] ?? 'testemunhas'
   const setSubTab = (id: string, tab: 'testemunhas' | 'suspeitos') => setSubTabState((prev) => ({ ...prev, [id]: tab }))
 
@@ -100,6 +103,24 @@ export function CasosSection({
     () => collectTraitSuggestions(character.cases.flatMap((cs) => [...cs.witnesses, ...cs.suspects])?.map((p) => p.traits)),
     [character.cases],
   )
+
+  const caseTitleSuggestions = useMemo(
+    () => Array.from(new Set(character.cases.map((cs) => cs.title?.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR')),
+    [character.cases],
+  )
+  const caseDateSuggestions = useMemo(
+    () => Array.from(new Set(character.cases.map((cs) => cs.date?.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR')),
+    [character.cases],
+  )
+
+  const hasActiveCaseSearch = caseSearch.title?.trim() !== '' || caseSearch.date?.trim() !== ''
+  const visibleCases = character.cases.filter((cs) => {
+    const titleQuery = caseSearch.title?.trim().toLowerCase()
+    const dateQuery = caseSearch.date?.trim().toLowerCase()
+    const titleMatch = titleQuery === '' || cs.title.toLowerCase().includes(titleQuery)
+    const dateMatch = dateQuery === '' || cs.date.toLowerCase().includes(dateQuery)
+    return titleMatch && dateMatch
+  })
 
   const updateCase = (
     caseId: string,
@@ -264,7 +285,9 @@ export function CasosSection({
           <span className="text-xs font-medium tracking-wide uppercase">
             {character.cases.length === 0
               ? 'Nenhum caso registrado'
-              : `${character.cases.length} caso${character.cases.length > 1 ? 's' : ''}`}
+              : hasActiveCaseSearch
+                ? `${visibleCases.length} de ${character.cases.length} caso${character.cases.length > 1 ? 's' : ''}`
+                : `${character.cases.length} caso${character.cases.length > 1 ? 's' : ''}`}
           </span>
         </div>
         <div className="flex items-center gap-1.5">
@@ -292,6 +315,43 @@ export function CasosSection({
           </motion.button>
         </div>
       </div>
+
+      {character.cases.length > 0 && (
+        <div className="flex flex-wrap items-end gap-2">
+          <FilterField
+            label="Nome do caso"
+            value={caseSearch.title}
+            onChange={(v) => setCaseSearch((prev) => ({ ...prev, title: v }))}
+            onClear={() => setCaseSearch((prev) => ({ ...prev, title: '' }))}
+            listId="case-title-suggestions"
+          />
+          <FilterField
+            label="Data"
+            value={caseSearch.date}
+            onChange={(v) => setCaseSearch((prev) => ({ ...prev, date: v }))}
+            onClear={() => setCaseSearch((prev) => ({ ...prev, date: '' }))}
+            listId="case-date-suggestions"
+          />
+          {hasActiveCaseSearch && (
+            <button
+              onClick={() => setCaseSearch({ title: '', date: '' })}
+              className="flex shrink-0 items-center gap-1 pb-1.5 text-xs font-medium text-stone-500 hover:text-amber-400"
+            >
+              <X size={12} /> Limpar
+            </button>
+          )}
+          <datalist id="case-title-suggestions">
+            {caseTitleSuggestions.map((value) => (
+              <option key={value} value={value} />
+            ))}
+          </datalist>
+          <datalist id="case-date-suggestions">
+            {caseDateSuggestions.map((value) => (
+              <option key={value} value={value} />
+            ))}
+          </datalist>
+        </div>
+      )}
 
       {character.cases.length > 0 && (
         <Panel title="Buscar por traços físicos" icon={<Search size={13} className="text-amber-600" />}>
@@ -375,9 +435,13 @@ export function CasosSection({
         </div>
       )}
 
+      {character.cases.length > 0 && hasActiveCaseSearch && visibleCases.length === 0 && (
+        <p className="text-sm text-stone-600">Nenhum caso bate com esse nome ou data.</p>
+      )}
+
       <AnimatePresence initial={false}>
-        {character.cases?.map((investigation) => {
-          const isCollapsed = !!collapsed[investigation.id]
+        {visibleCases?.map((investigation) => {
+          const isCollapsed = isCaseCollapsed(investigation.id)
           const status = STATUS_OPTIONS.find((s) => s.value === investigation.status) ?? STATUS_OPTIONS[0]
           const activeSubTab = getSubTab(investigation.id)
           return (
