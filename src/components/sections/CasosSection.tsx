@@ -393,7 +393,7 @@ export function CasosSection({
               exit={{ opacity: 0, y: -8 }}
               className="overflow-hidden rounded-xl border border-stone-800 bg-stone-900/60 shadow-lg shadow-black/20 backdrop-blur-sm"
             >
-              <div className="flex items-center gap-2 border-b border-stone-800 px-4 py-2.5">
+              <div className="flex flex-wrap items-center gap-2 border-b border-stone-800 px-4 py-2.5">
                 <button
                   onClick={() => toggleCollapsed(investigation.id)}
                   className="flex items-center text-stone-500 hover:text-stone-300"
@@ -402,11 +402,25 @@ export function CasosSection({
                     <ChevronDown size={16} />
                   </motion.span>
                 </button>
+                <div className="flex min-w-32 flex-1 items-baseline gap-2">
+                  <input
+                    value={investigation.title}
+                    onChange={(e) => updateCase(investigation.id, { title: e.target.value })}
+                    placeholder="Nome do caso"
+                    className=" w-fit bg-transparent font-serif text-sm font-semibold text-stone-100 outline-none placeholder:font-sans placeholder:font-normal placeholder:text-stone-600"
+                  />
+                  <input
+                    value={investigation.date}
+                    onChange={(e) => updateCase(investigation.id, { date: e.target.value })}
+                    placeholder="Data"
+                    className="w-28 shrink-0 bg-transparent text-xs text-stone-500 outline-none placeholder:text-stone-600 focus:text-stone-300"
+                  />
+                </div>
                 <input
-                  value={investigation.title}
-                  onChange={(e) => updateCase(investigation.id, { title: e.target.value })}
-                  placeholder="Nome do caso"
-                  className="flex-1 bg-transparent font-serif text-sm font-semibold text-stone-100 outline-none placeholder:font-sans placeholder:font-normal placeholder:text-stone-600"
+                  value={investigation.location}
+                  onChange={(e) => updateCase(investigation.id, { location: e.target.value })}
+                  placeholder="Local"
+                  className="w-32 shrink-0 bg-transparent text-sm text-stone-300 outline-none placeholder:font-normal placeholder:text-stone-600"
                 />
                 <select
                   value={investigation.status}

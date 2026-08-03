@@ -157,6 +157,9 @@ export type CaseStatus = 'aberto' | 'resolvido' | 'arquivado'
 export interface InvestigationCase {
   id: string
   title: string
+  /** Free text, not necessarily a real-world date — in-game calendars vary. */
+  date: string
+  location: string
   summary: string
   status: CaseStatus
   witnesses: Witness[]
@@ -181,6 +184,8 @@ export function createCase(): InvestigationCase {
   return {
     id: crypto.randomUUID(),
     title: '',
+    date: '',
+    location: '',
     summary: '',
     status: 'aberto',
     witnesses: [],
