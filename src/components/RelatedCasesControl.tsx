@@ -99,7 +99,7 @@ export function RelatedCasesControl({
               className="z-50 rounded-lg border border-stone-700 bg-stone-900 p-2 shadow-xl shadow-black/40"
             >
               <p className="mb-1.5 px-1 text-[10px] font-medium tracking-wide text-stone-500 uppercase">Vincular a</p>
-              {candidates.length === 0 ? (
+              {candidates?.length === 0 ? (
                 <p className="px-1 py-2 text-xs text-stone-600">Nenhum outro caso disponível pra vincular ainda.</p>
               ) : (
                 <div className="flex max-h-52 flex-col gap-0.5 overflow-y-auto">

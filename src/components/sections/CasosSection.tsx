@@ -1,11 +1,25 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'motion/react'
-import { ChevronDown, Download, Eye, FolderSearch, Link2, Plus, Search, Trash2, Upload, UserRoundSearch, X } from 'lucide-react'
+import {
+  ChevronDown,
+  Download,
+  Eye,
+  FolderSearch,
+  Link2,
+  Plus,
+  Search,
+  Skull,
+  Trash2,
+  Upload,
+  UserRoundSearch,
+  X,
+} from 'lucide-react'
 import {
   createCase,
   createSuspect,
   createTestimony,
+  createVictim,
   createWitness,
   FILTERABLE_TRAIT_FIELDS,
   TRAIT_FIELD_LABELS,
@@ -17,6 +31,7 @@ import {
   type Suspect,
   type Testimony,
   type TraitField,
+  type Victim,
   type Witness,
 } from '../../types/character'
 import {
@@ -33,6 +48,20 @@ import { RelatedCasesControl } from '../RelatedCasesControl'
 import { Panel, TextAreaField, TextField } from '../ui'
 import { useInvestigationData } from '../../hooks/useInvestigationData'
 
+type SubTabKey = 'testemunhas' | 'suspeitos' | 'vitimas'
+
+const SUB_TAB_DEFS: { key: SubTabKey; label: string; icon: typeof Eye }[] = [
+  { key: 'testemunhas', label: 'Testemunhas', icon: Eye },
+  { key: 'suspeitos', label: 'Suspeitos', icon: UserRoundSearch },
+  { key: 'vitimas', label: 'Vítimas', icon: Skull },
+]
+
+function subTabCount(investigation: InvestigationCase, key: SubTabKey): number {
+  if (key === 'testemunhas') return investigation.witnesses?.length
+  if (key === 'suspeitos') return investigation.suspects?.length
+  return investigation.victims?.length
+}
+
 const STATUS_OPTIONS: { value: CaseStatus; label: string; classes: string }[] = [
   { value: 'aberto', label: 'Aberto', classes: 'border-amber-700/50 bg-amber-950/50 text-amber-400' },
   { value: 'resolvido', label: 'Resolvido', classes: 'border-emerald-700/50 bg-emerald-950/50 text-emerald-400' },
@@ -42,31 +71,37 @@ const STATUS_OPTIONS: { value: CaseStatus; label: string; classes: string }[] = 
 interface PersonMatch {
   caseId: string
   caseTitle: string
-  kind: 'witness' | 'suspect'
+  kind: 'witness' | 'suspect' | 'victim'
   id: string
   name: string
   traits: PhysicalTraits
 }
 
+function stripTestimonyRefs<T extends { sources: Partial<Record<TraitField, string[]>> }>(people: T[], idSet: Set<string>): T[] {
+  return people.map((p) => {
+    let changed = false
+    const sources = { ...p.sources }
+    for (const key of Object.keys(sources) as TraitField[]) {
+      const arr = sources[key]
+      if (!arr) continue
+      const filtered = arr.filter((id) => !idSet.has(id))
+      if (filtered?.length !== arr?.length) {
+        sources[key] = filtered
+        changed = true
+      }
+    }
+    return changed ? { ...p, sources } : p
+  })
+}
+
+/** Removes references to deleted testimonies from every suspect's and victim's per-trait sources. */
 function stripTestimonyFromSuspects(investigation: InvestigationCase, testimonyIds: string[]): InvestigationCase {
-  if (testimonyIds.length === 0) return investigation
+  if (testimonyIds?.length === 0) return investigation
   const idSet = new Set(testimonyIds)
   return {
     ...investigation,
-    suspects: investigation.suspects?.map((s) => {
-      let changed = false
-      const sources = { ...s.sources }
-      for (const key of Object.keys(sources) as TraitField[]) {
-        const arr = sources[key]
-        if (!arr) continue
-        const filtered = arr.filter((id) => !idSet.has(id))
-        if (filtered.length !== arr.length) {
-          sources[key] = filtered
-          changed = true
-        }
-      }
-      return changed ? { ...s, sources } : s
-    }),
+    suspects: stripTestimonyRefs(investigation.suspects, idSet),
+    victims: stripTestimonyRefs(investigation.victims, idSet),
   }
 }
 
@@ -87,7 +122,7 @@ export function CasosSection({
   onNotify?: (message: string, variant: 'success' | 'error' | 'info') => void
 }) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
-  const [subTab, setSubTabState] = useState<Record<string, 'testemunhas' | 'suspeitos'>>({})
+  const [subTab, setSubTabState] = useState<Record<string, SubTabKey>>({})
   const [filters, setFilters] = useState<TraitFilters>(BLANK_TRAIT_FILTERS)
   const [caseSearch, setCaseSearch] = useState({ title: '', date: '' })
   const { exportData, importData } = useInvestigationData(character, update, onNotify)
@@ -97,10 +132,10 @@ export function CasosSection({
   const toggleCollapsed = (id: string) => setCollapsed((prev) => ({ ...prev, [id]: !(prev[id] ?? true) }))
   const isCaseCollapsed = (id: string) => collapsed[id] ?? true
   const getSubTab = (id: string) => subTab[id] ?? 'testemunhas'
-  const setSubTab = (id: string, tab: 'testemunhas' | 'suspeitos') => setSubTabState((prev) => ({ ...prev, [id]: tab }))
+  const setSubTab = (id: string, tab: SubTabKey) => setSubTabState((prev) => ({ ...prev, [id]: tab }))
 
   const traitSuggestions = useMemo(
-    () => collectTraitSuggestions(character.cases.flatMap((cs) => [...cs.witnesses, ...cs.suspects])?.map((p) => p.traits)),
+    () => collectTraitSuggestions(character.cases.flatMap((cs) => [...cs.witnesses, ...cs.suspects, ...(cs.victims ?? [])])?.map((p) => p.traits)),
     [character.cases],
   )
 
@@ -138,7 +173,7 @@ export function CasosSection({
   }
 
   const removeCase = (id: string) => {
-    if (!confirm('Remover este caso, suas testemunhas e suspeitos?')) return
+    if (!confirm('Remover este caso, suas testemunhas, suspeitos e vítimas?')) return
     update((c) => ({
       ...c,
       cases: c.cases
@@ -236,6 +271,28 @@ export function CasosSection({
       }),
     }))
 
+  const addVictim = (caseId: string) => updateCase(caseId, (cs) => ({ ...cs, victims: [...(cs.victims ?? []), createVictim()] }))
+
+  const updateVictim = (caseId: string, victimId: string, patch: Partial<Victim>) =>
+    updateCase(caseId, (cs) => ({
+      ...cs,
+      victims: cs.victims?.map((v) => (v.id === victimId ? { ...v, ...patch } : v)),
+    }))
+
+  const removeVictim = (caseId: string, victimId: string) =>
+    updateCase(caseId, (cs) => ({ ...cs, victims: cs.victims.filter((v) => v.id !== victimId) }))
+
+  const toggleVictimSource = (caseId: string, victimId: string, field: TraitField, testimonyId: string) =>
+    updateCase(caseId, (cs) => ({
+      ...cs,
+      victims: cs.victims?.map((v) => {
+        if (v.id !== victimId) return v
+        const current = v.sources[field] ?? []
+        const next = current?.includes(testimonyId) ? current.filter((id) => id !== testimonyId) : [...current, testimonyId]
+        return { ...v, sources: { ...v.sources, [field]: next } }
+      }),
+    }))
+
   const linkWitnessToBank = (caseId: string, witnessId: string, bankId: string) => {
     const bankChar = character.characterBank.find((b) => b.id === bankId)
     if (!bankChar) return
@@ -252,6 +309,14 @@ export function CasosSection({
   const unlinkSuspectFromBank = (caseId: string, suspectId: string) =>
     updateSuspect(caseId, suspectId, { linkedCharacterId: undefined })
 
+  const linkVictimToBank = (caseId: string, victimId: string, bankId: string) => {
+    const bankChar = character.characterBank.find((b) => b.id === bankId)
+    if (!bankChar) return
+    updateVictim(caseId, victimId, { name: bankChar.name, traits: bankChar.traits, linkedCharacterId: bankId })
+  }
+  const unlinkVictimFromBank = (caseId: string, victimId: string) =>
+    updateVictim(caseId, victimId, { linkedCharacterId: undefined })
+
   const hasActiveFilter = hasActiveTraitFilter(filters)
 
   const filterResults: PersonMatch[] = hasActiveFilter
@@ -260,6 +325,7 @@ export function CasosSection({
       const people: PersonMatch[] = [
         ...cs.witnesses?.map((w) => ({ caseId: cs.id, caseTitle, kind: 'witness' as const, id: w.id, name: w.name, traits: w.traits })),
         ...cs.suspects?.map((s) => ({ caseId: cs.id, caseTitle, kind: 'suspect' as const, id: s.id, name: s.name, traits: s.traits })),
+        ...(cs.victims ?? [])?.map((v) => ({ caseId: cs.id, caseTitle, kind: 'victim' as const, id: v.id, name: v.name, traits: v.traits })),
       ]
       return people.filter((p) => matchesTraitFilters(p.traits, filters))
     })
@@ -272,8 +338,14 @@ export function CasosSection({
     })
   }
 
+  const SUB_TAB_BY_KIND: Record<PersonMatch['kind'], SubTabKey> = {
+    witness: 'testemunhas',
+    suspect: 'suspeitos',
+    victim: 'vitimas',
+  }
+
   const jumpToPerson = (match: PersonMatch) => {
-    setSubTab(match.caseId, match.kind === 'witness' ? 'testemunhas' : 'suspeitos')
+    setSubTab(match.caseId, SUB_TAB_BY_KIND[match.kind])
     jumpToCase(match.caseId)
   }
 
@@ -283,11 +355,11 @@ export function CasosSection({
         <div className="flex items-center gap-2 text-stone-400">
           <FolderSearch size={16} className="text-amber-600" />
           <span className="text-xs font-medium tracking-wide uppercase">
-            {character.cases.length === 0
+            {character.cases?.length === 0
               ? 'Nenhum caso registrado'
               : hasActiveCaseSearch
-                ? `${visibleCases.length} de ${character.cases.length} caso${character.cases.length > 1 ? 's' : ''}`
-                : `${character.cases.length} caso${character.cases.length > 1 ? 's' : ''}`}
+                ? `${visibleCases?.length} de ${character.cases?.length} caso${character.cases?.length > 1 ? 's' : ''}`
+                : `${character.cases?.length} caso${character.cases?.length > 1 ? 's' : ''}`}
           </span>
         </div>
         <div className="flex items-center gap-1.5">
@@ -316,7 +388,7 @@ export function CasosSection({
         </div>
       </div>
 
-      {character.cases.length > 0 && (
+      {character.cases?.length > 0 && (
         <div className="flex flex-wrap items-end gap-2">
           <FilterField
             label="Nome do caso"
@@ -353,12 +425,12 @@ export function CasosSection({
         </div>
       )}
 
-      {character.cases.length > 0 && (
+      {character.cases?.length > 0 && (
         <Panel title="Buscar por traços físicos" icon={<Search size={13} className="text-amber-600" />}>
           <div className="mb-2.5 flex items-start justify-between gap-3">
             <p className="text-xs text-stone-500">
-              Busca testemunhas e suspeitos de todos os casos por qualquer combinação de traços — útil pra achar a mesma pessoa
-              descrita em lugares diferentes. Comece a digitar pra ver sugestões do que já foi cadastrado.
+              Busca testemunhas, suspeitos e vítimas de todos os casos por qualquer combinação de traços — útil pra achar a
+              mesma pessoa descrita em lugares diferentes. Comece a digitar pra ver sugestões do que já foi cadastrado.
             </p>
             {hasActiveFilter && (
               <button
@@ -392,11 +464,11 @@ export function CasosSection({
           {hasActiveFilter && (
             <div className="mt-3 border-t border-stone-800 pt-3">
               <p className="mb-2 text-[11px] font-medium tracking-wide text-stone-500 uppercase">
-                {filterResults.length} pessoa{filterResults.length === 1 ? '' : 's'} encontrada
-                {filterResults.length === 1 ? '' : 's'}
+                {filterResults?.length} pessoa{filterResults?.length === 1 ? '' : 's'} encontrada
+                {filterResults?.length === 1 ? '' : 's'}
               </p>
-              {filterResults.length === 0 ? (
-                <p className="text-sm text-stone-600">Nenhuma testemunha ou suspeito bate com esses traços.</p>
+              {filterResults?.length === 0 ? (
+                <p className="text-sm text-stone-600">Nenhuma testemunha, suspeito ou vítima bate com esses traços.</p>
               ) : (
                 <div className="flex flex-col gap-1.5">
                   {filterResults?.map((m) => (
@@ -405,11 +477,9 @@ export function CasosSection({
                       onClick={() => jumpToPerson(m)}
                       className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md border border-stone-800 bg-stone-950/50 px-2.5 py-2 text-left text-xs transition-colors hover:border-amber-600/50"
                     >
-                      {m.kind === 'witness' ? (
-                        <Eye size={12} className="shrink-0 text-stone-500" />
-                      ) : (
-                        <UserRoundSearch size={12} className="shrink-0 text-stone-500" />
-                      )}
+                      {m.kind === 'witness' && <Eye size={12} className="shrink-0 text-stone-500" />}
+                      {m.kind === 'suspect' && <UserRoundSearch size={12} className="shrink-0 text-stone-500" />}
+                      {m.kind === 'victim' && <Skull size={12} className="shrink-0 text-stone-500" />}
                       <span className="font-medium text-stone-200">{m.name || 'Sem nome'}</span>
                       <span className="text-stone-600">· {m.caseTitle}</span>
                       <span className="text-stone-500">
@@ -426,16 +496,17 @@ export function CasosSection({
         </Panel>
       )}
 
-      {character.cases.length === 0 && (
+      {character.cases?.length === 0 && (
         <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-stone-800 bg-stone-950/40 px-6 py-14 text-center">
           <FolderSearch size={28} className="text-stone-700" />
           <p className="text-sm text-stone-500">
-            Registre casos de investigação: as testemunhas e o que contaram, e os suspeitos com os dados levantados sobre eles.
+            Registre casos de investigação: as testemunhas e o que contaram, os suspeitos com os dados levantados sobre eles, e
+            as vítimas envolvidas.
           </p>
         </div>
       )}
 
-      {character.cases.length > 0 && hasActiveCaseSearch && visibleCases.length === 0 && (
+      {character.cases?.length > 0 && hasActiveCaseSearch && visibleCases?.length === 0 && (
         <p className="text-sm text-stone-600">Nenhum caso bate com esse nome ou data.</p>
       )}
 
@@ -498,7 +569,8 @@ export function CasosSection({
                   ))}
                 </select>
                 <span className="hidden text-[11px] text-stone-600 sm:inline">
-                  {investigation.witnesses.length} test. · {investigation.suspects.length} susp.
+                  {investigation.witnesses?.length} test. · {investigation.suspects?.length} susp. · {investigation.victims?.length}{' '}
+                  vít.
                 </span>
                 <button onClick={() => removeCase(investigation.id)} className="text-stone-600 hover:text-red-500">
                   <Trash2 size={14} />
@@ -532,9 +604,9 @@ export function CasosSection({
                       />
 
                       <div className="flex gap-1 border-b border-stone-800">
-                        {(['testemunhas', 'suspeitos'] as const)?.map((key) => {
+                        {SUB_TAB_DEFS.map(({ key, label, icon: Icon }) => {
                           const active = activeSubTab === key
-                          const count = key === 'testemunhas' ? investigation.witnesses.length : investigation.suspects.length
+                          const count = subTabCount(investigation, key)
                           return (
                             <button
                               key={key}
@@ -542,8 +614,8 @@ export function CasosSection({
                               className={`relative flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${active ? 'text-amber-400' : 'text-stone-500 hover:text-stone-300'
                                 }`}
                             >
-                              {key === 'testemunhas' ? <Eye size={13} /> : <UserRoundSearch size={13} />}
-                              {key === 'testemunhas' ? 'Testemunhas' : 'Suspeitos'}
+                              <Icon size={13} />
+                              {label}
                               {count > 0 && <span className="text-stone-600">({count})</span>}
                               {active && (
                                 <motion.div
@@ -557,7 +629,7 @@ export function CasosSection({
                         })}
                       </div>
 
-                      {activeSubTab === 'testemunhas' ? (
+                      {activeSubTab === 'testemunhas' && (
                         <div className="flex flex-col gap-3">
                           {investigation.witnesses?.map((witness) => (
                             <WitnessCard
@@ -580,12 +652,16 @@ export function CasosSection({
                             <Plus size={13} /> Testemunha
                           </button>
                         </div>
-                      ) : (
+                      )}
+
+                      {activeSubTab === 'suspeitos' && (
                         <div className="flex flex-col gap-3">
                           {investigation.suspects?.map((suspect) => (
-                            <SuspectCard
+                            <SourcedPersonCard
                               key={suspect.id}
-                              suspect={suspect}
+                              person={suspect}
+                              icon={<UserRoundSearch size={14} className="shrink-0 text-stone-600" />}
+                              namePlaceholder='Nome (ou "desconhecido")'
                               witnesses={investigation.witnesses}
                               characterBank={character.characterBank}
                               onChange={(patch) => updateSuspect(investigation.id, suspect.id, patch)}
@@ -600,6 +676,32 @@ export function CasosSection({
                             className="flex items-center gap-1.5 self-start text-xs font-medium text-amber-500 hover:text-amber-400"
                           >
                             <Plus size={13} /> Suspeito
+                          </button>
+                        </div>
+                      )}
+
+                      {activeSubTab === 'vitimas' && (
+                        <div className="flex flex-col gap-3">
+                          {investigation.victims?.map((victim) => (
+                            <SourcedPersonCard
+                              key={victim.id}
+                              person={victim}
+                              icon={<Skull size={14} className="shrink-0 text-stone-600" />}
+                              namePlaceholder="Nome da vítima"
+                              witnesses={investigation.witnesses}
+                              characterBank={character.characterBank}
+                              onChange={(patch) => updateVictim(investigation.id, victim.id, patch)}
+                              onToggleSource={(field, tid) => toggleVictimSource(investigation.id, victim.id, field, tid)}
+                              onRemove={() => removeVictim(investigation.id, victim.id)}
+                              onLinkBank={(bankId) => linkVictimToBank(investigation.id, victim.id, bankId)}
+                              onUnlinkBank={() => unlinkVictimFromBank(investigation.id, victim.id)}
+                            />
+                          ))}
+                          <button
+                            onClick={() => addVictim(investigation.id)}
+                            className="flex items-center gap-1.5 self-start text-xs font-medium text-amber-500 hover:text-amber-400"
+                          >
+                            <Plus size={13} /> Vítima
                           </button>
                         </div>
                       )}
@@ -758,8 +860,11 @@ function WitnessCard({
   )
 }
 
-function SuspectCard({
-  suspect,
+/** Suspects and victims share the same shape (name, traits, per-field testimony sources, bank link), so one card renders both. */
+function SourcedPersonCard({
+  person,
+  icon,
+  namePlaceholder,
   witnesses,
   characterBank,
   onChange,
@@ -768,17 +873,19 @@ function SuspectCard({
   onLinkBank,
   onUnlinkBank,
 }: {
-  suspect: Suspect
+  person: Suspect | Victim
+  icon: ReactNode
+  namePlaceholder: string
   witnesses: Witness[]
   characterBank: BankCharacter[]
-  onChange: (patch: Partial<Suspect>) => void
+  onChange: (patch: Partial<Suspect | Victim>) => void
   onToggleSource: (field: TraitField, testimonyId: string) => void
   onRemove: () => void
   onLinkBank: (bankId: string) => void
   onUnlinkBank: () => void
 }) {
-  const onTraitChange = (field: TraitField, value: string) => onChange({ traits: { ...suspect.traits, [field]: value } })
-  const isLinked = !!suspect.linkedCharacterId
+  const onTraitChange = (field: TraitField, value: string) => onChange({ traits: { ...person.traits, [field]: value } })
+  const isLinked = !!person.linkedCharacterId
 
   return (
     <motion.div
@@ -789,15 +896,15 @@ function SuspectCard({
       className="rounded-lg border border-stone-800 bg-stone-950/50 p-3"
     >
       <div className="mb-2.5 flex items-center gap-2">
-        <UserRoundSearch size={14} className="shrink-0 text-stone-600" />
+        {icon}
         <input
-          value={suspect.name}
+          value={person.name}
           onChange={(e) => onChange({ name: e.target.value })}
           disabled={isLinked}
-          placeholder="Nome (ou &quot;desconhecido&quot;)"
+          placeholder={namePlaceholder}
           className="min-w-0 flex-1 rounded-md border border-stone-700 bg-stone-900 px-2 py-1.5 text-sm font-medium text-stone-100 outline-none focus:border-amber-600/60 disabled:text-stone-400"
         />
-        <BankLinkControl bank={characterBank} linkedId={suspect.linkedCharacterId} onLink={onLinkBank} onUnlink={onUnlinkBank} />
+        <BankLinkControl bank={characterBank} linkedId={person.linkedCharacterId} onLink={onLinkBank} onUnlink={onUnlinkBank} />
         <button onClick={onRemove} className="shrink-0 text-stone-600 hover:text-red-500">
           <Trash2 size={13} />
         </button>
@@ -807,11 +914,11 @@ function SuspectCard({
         <div className="rounded-md border border-sky-900/40 bg-sky-950/20 px-3 py-2 text-xs text-stone-400">
           <p className="mb-1 text-[10px] font-medium tracking-wide text-sky-500 uppercase">Traços do personagem vinculado</p>
           <p>
-            {FILTERABLE_TRAIT_FIELDS.filter((f) => suspect.traits[f])
-              ?.map((f) => `${TRAIT_FIELD_LABELS[f]}: ${suspect.traits[f]}`)
+            {FILTERABLE_TRAIT_FIELDS.filter((f) => person.traits[f])
+              ?.map((f) => `${TRAIT_FIELD_LABELS[f]}: ${person.traits[f]}`)
               .join(' · ') || 'Nenhum traço definido ainda.'}
           </p>
-          {suspect.traits.description && <p className="mt-1 italic text-stone-500">{suspect.traits.description}</p>}
+          {person.traits.description && <p className="mt-1 italic text-stone-500">{person.traits.description}</p>}
           <p className="mt-1.5 text-[10px] text-stone-600">
             Edite esses dados na aba Personagens — a mudança aparece em todo lugar onde ele está vinculado. Fontes por campo
             ficam disponíveis de novo ao desvincular.
@@ -824,10 +931,10 @@ function SuspectCard({
               <SourcedField
                 key={field}
                 label={TRAIT_FIELD_LABELS[field]}
-                value={suspect.traits[field]}
+                value={person.traits[field]}
                 onChange={(v) => onTraitChange(field, v)}
                 witnesses={witnesses}
-                selected={suspect.sources[field] ?? []}
+                selected={person.sources[field] ?? []}
                 onToggle={(tid) => onToggleSource(field, tid)}
               />
             ))}
@@ -836,10 +943,10 @@ function SuspectCard({
           <SourcedField
             label={TRAIT_FIELD_LABELS.description}
             textarea
-            value={suspect.traits.description}
+            value={person.traits.description}
             onChange={(v) => onTraitChange('description', v)}
             witnesses={witnesses}
-            selected={suspect.sources.description ?? []}
+            selected={person.sources.description ?? []}
             onToggle={(tid) => onToggleSource('description', tid)}
             className="mt-2.5"
           />
@@ -943,13 +1050,13 @@ function SourceLinker({
         type="button"
         onClick={() => (open ? setOpen(false) : openMenu())}
         title="Testemunhos que confirmam este dado"
-        className={`flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-medium transition-colors ${selected.length > 0
-            ? 'border-sky-700/50 bg-sky-950/50 text-sky-400'
-            : 'border-stone-700 text-stone-500 hover:text-stone-300'
+        className={`flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-medium transition-colors ${selected?.length > 0
+          ? 'border-sky-700/50 bg-sky-950/50 text-sky-400'
+          : 'border-stone-700 text-stone-500 hover:text-stone-300'
           }`}
       >
         <Link2 size={11} />
-        {selected.length > 0 ? selected.length : 'Fonte'}
+        {selected?.length > 0 ? selected?.length : 'Fonte'}
       </button>
       {open &&
         coords &&
@@ -966,7 +1073,7 @@ function SourceLinker({
               <p className="mb-1.5 px-1 text-[10px] font-medium tracking-wide text-stone-500 uppercase">
                 Testemunhos que confirmam este dado
               </p>
-              {allTestimonies.length === 0 ? (
+              {allTestimonies?.length === 0 ? (
                 <p className="px-1 py-2 text-xs text-stone-600">Nenhum testemunho registrado neste caso ainda.</p>
               ) : (
                 <div className="flex max-h-52 flex-col gap-0.5 overflow-y-auto">

@@ -48,7 +48,7 @@ export function useInvestigationData(
         characterBank: [...c.characterBank, ...characterBank],
       }))
       notify?.(
-        `${cases.length} caso${cases.length === 1 ? '' : 's'} e ${characterBank.length} personagem${characterBank.length === 1 ? '' : 'ns'} importado(s).`,
+        `${cases?.length} caso${cases?.length === 1 ? '' : 's'} e ${characterBank?.length} personagem${characterBank?.length === 1 ? '' : 'ns'} importado(s).`,
         'success',
       )
     } catch {

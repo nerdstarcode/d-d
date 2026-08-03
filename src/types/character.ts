@@ -152,6 +152,16 @@ export interface Suspect {
   linkedCharacterId?: string
 }
 
+export interface Victim {
+  id: string
+  name: string
+  traits: PhysicalTraits
+  /** IDs of testimonies (from this case's witnesses) that back up each trait's value. */
+  sources: Partial<Record<TraitField, string[]>>
+  /** id of a BankCharacter this victim mirrors — its name/traits are kept in sync with that entry. */
+  linkedCharacterId?: string
+}
+
 export type CaseStatus = 'aberto' | 'resolvido' | 'arquivado'
 
 export interface InvestigationCase {
@@ -164,6 +174,7 @@ export interface InvestigationCase {
   status: CaseStatus
   witnesses: Witness[]
   suspects: Suspect[]
+  victims: Victim[]
   /** IDs of other cases this one is related to. Always kept symmetric: linking A to B also links B to A. */
   relatedCaseIds: string[]
 }
@@ -180,6 +191,10 @@ export function createSuspect(): Suspect {
   return { id: crypto.randomUUID(), name: '', traits: createPhysicalTraits(), sources: {} }
 }
 
+export function createVictim(): Victim {
+  return { id: crypto.randomUUID(), name: '', traits: createPhysicalTraits(), sources: {} }
+}
+
 export function createCase(): InvestigationCase {
   return {
     id: crypto.randomUUID(),
@@ -190,6 +205,7 @@ export function createCase(): InvestigationCase {
     status: 'aberto',
     witnesses: [],
     suspects: [],
+    victims: [],
     relatedCaseIds: [],
   }
 }

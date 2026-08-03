@@ -87,7 +87,7 @@ export function BankLinkControl({
               <p className="mb-1.5 px-1 text-[10px] font-medium tracking-wide text-stone-500 uppercase">
                 Personagens do banco
               </p>
-              {bank.length === 0 ? (
+              {bank?.length === 0 ? (
                 <p className="px-1 py-2 text-xs text-stone-600">Nenhum personagem salvo ainda. Crie um na aba Personagens.</p>
               ) : (
                 <div className="flex max-h-52 flex-col gap-0.5 overflow-y-auto">

@@ -88,9 +88,9 @@ export function PersonagensSection({
         <div className="flex items-center gap-2 text-stone-400">
           <Users size={16} className="text-amber-600" />
           <span className="text-xs font-medium tracking-wide uppercase">
-            {character.characterBank.length === 0
+            {character.characterBank?.length === 0
               ? 'Nenhum personagem salvo'
-              : `${character.characterBank.length} ${character.characterBank.length > 1 ? 'personagens' : 'personagem'}`}
+              : `${character.characterBank?.length} ${character.characterBank?.length > 1 ? 'personagens' : 'personagem'}`}
           </span>
         </div>
         <div className="flex items-center gap-1.5">
@@ -124,7 +124,7 @@ export function PersonagensSection({
         nome). Editar um personagem aqui atualiza automaticamente todos os lugares onde ele está vinculado.
       </p>
 
-      {character.characterBank.length > 0 && (
+      {character.characterBank?.length > 0 && (
         <Panel title="Buscar por traços físicos" icon={<Search size={13} className="text-amber-600" />}>
           <div className="mb-2.5 flex items-start justify-between gap-3">
             <p className="text-xs text-stone-500">Filtra os personagens abaixo por qualquer combinação de traços.</p>
@@ -159,7 +159,7 @@ export function PersonagensSection({
         </Panel>
       )}
 
-      {character.characterBank.length === 0 && (
+      {character.characterBank?.length === 0 && (
         <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-stone-800 bg-stone-950/40 px-6 py-14 text-center">
           <Users size={28} className="text-stone-700" />
           <p className="text-sm text-stone-500">
@@ -169,7 +169,7 @@ export function PersonagensSection({
         </div>
       )}
 
-      {hasActiveFilter && visibleBank.length === 0 && character.characterBank.length > 0 && (
+      {hasActiveFilter && visibleBank?.length === 0 && character.characterBank?.length > 0 && (
         <p className="text-sm text-stone-600">Nenhum personagem bate com esses traços.</p>
       )}
 
