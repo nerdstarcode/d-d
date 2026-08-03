@@ -542,13 +542,13 @@ export function CasosSection({
                     value={investigation.title}
                     onChange={(e) => updateCase(investigation.id, { title: e.target.value })}
                     placeholder="Nome do caso"
-                    className=" w-fit bg-transparent font-serif text-sm font-semibold text-stone-100 outline-none placeholder:font-sans placeholder:font-normal placeholder:text-stone-600"
+                    className="flex-1 w-fit bg-transparent font-serif text-sm font-semibold text-stone-100 outline-none placeholder:font-sans placeholder:font-normal placeholder:text-stone-600"
                   />
                   <input
                     value={investigation.date}
                     onChange={(e) => updateCase(investigation.id, { date: e.target.value })}
                     placeholder="Data"
-                    className="w-28 shrink-0 bg-transparent text-xs text-stone-500 outline-none placeholder:text-stone-600 focus:text-stone-300"
+                    className="w-48 shrink-0 bg-transparent text-xs text-stone-500 outline-none placeholder:text-stone-600 focus:text-stone-300"
                   />
                 </div>
                 <input
@@ -569,7 +569,7 @@ export function CasosSection({
                   ))}
                 </select>
                 <span className="hidden text-[11px] text-stone-600 sm:inline">
-                  {investigation.witnesses?.length} test. · {investigation.suspects?.length} susp. · {investigation.victims?.length}{' '}
+                  {investigation.witnesses?.length} test. · {investigation.suspects?.length} susp. · {investigation.victims?.length ?? 0}{' '}
                   vít.
                 </span>
                 <button onClick={() => removeCase(investigation.id)} className="text-stone-600 hover:text-red-500">
