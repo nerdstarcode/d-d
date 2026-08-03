@@ -19,8 +19,10 @@ export function BankLinkControl({
 }) {
   const [open, setOpen] = useState(false)
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(null)
+  const [query, setQuery] = useState('')
   const btnRef = useRef<HTMLButtonElement>(null)
   const linked = bank.find((b) => b.id === linkedId)
+  const candidates = bank.filter((b) => (b.name || 'Sem nome').toLowerCase().includes(query.trim().toLowerCase()))
 
   const openMenu = () => {
     const rect = btnRef.current?.getBoundingClientRect()
@@ -30,6 +32,7 @@ export function BankLinkControl({
         left: Math.min(Math.max(rect.right - MENU_WIDTH, 8), window.innerWidth - MENU_WIDTH - 8),
       })
     }
+    setQuery('')
     setOpen(true)
   }
 
@@ -90,21 +93,36 @@ export function BankLinkControl({
               {bank?.length === 0 ? (
                 <p className="px-1 py-2 text-xs text-stone-600">Nenhum personagem salvo ainda. Crie um na aba Personagens.</p>
               ) : (
-                <div className="flex max-h-52 flex-col gap-0.5 overflow-y-auto">
-                  {bank?.map((b) => (
-                    <button
-                      key={b.id}
-                      onClick={() => {
-                        onLink(b.id)
-                        setOpen(false)
-                      }}
-                      className="rounded-md px-1.5 py-1.5 text-left text-xs text-stone-300 hover:bg-stone-800/60"
-                    >
-                      <span className="font-medium text-stone-200">{b.name || 'Sem nome'}</span>
-                      {b.traits.hairColor && <span className="text-stone-500"> · {b.traits.hairColor}</span>}
-                    </button>
-                  ))}
-                </div>
+                <>
+                  <input
+                    type="text"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                    placeholder="Buscar personagem pelo nome..."
+                    autoFocus
+                    className="mb-1.5 w-full rounded-md border border-stone-700 bg-stone-950/70 px-2 py-1 text-xs text-stone-100 outline-none focus:border-amber-600/60"
+                  />
+                  {candidates.length === 0 ? (
+                    <p className="px-1 py-2 text-xs text-stone-600">Nenhum personagem encontrado com esse nome.</p>
+                  ) : (
+                    <div className="flex max-h-52 flex-col gap-0.5 overflow-y-auto">
+                      {candidates.map((b) => (
+                        <button
+                          key={b.id}
+                          onClick={() => {
+                            onLink(b.id)
+                            setOpen(false)
+                          }}
+                          className="rounded-md px-1.5 py-1.5 text-left text-xs text-stone-300 hover:bg-stone-800/60"
+                        >
+                          <span className="font-medium text-stone-200">{b.name || 'Sem nome'}</span>
+                          {b.traits.hairColor && <span className="text-stone-500"> · {b.traits.hairColor}</span>}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </motion.div>
           </>,

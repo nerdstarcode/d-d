@@ -27,10 +27,13 @@ export function RelatedCasesControl({
 }) {
   const [open, setOpen] = useState(false)
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(null)
+  const [query, setQuery] = useState('')
   const btnRef = useRef<HTMLButtonElement>(null)
 
   const relatedCases = relatedIds?.map((id) => allCases.find((c) => c.id === id)).filter((c): c is CaseOption => !!c)
-  const candidates = allCases.filter((c) => c.id !== currentCaseId && !relatedIds?.includes(c.id))
+  const candidates = allCases
+    .filter((c) => c.id !== currentCaseId && !relatedIds?.includes(c.id))
+    .filter((c) => (c.title || 'Caso sem título').toLowerCase().includes(query.trim().toLowerCase()))
 
   const openMenu = () => {
     const rect = btnRef.current?.getBoundingClientRect()
@@ -40,6 +43,7 @@ export function RelatedCasesControl({
         left: Math.min(Math.max(rect.right - MENU_WIDTH, 8), window.innerWidth - MENU_WIDTH - 8),
       })
     }
+    setQuery('')
     setOpen(true)
   }
 
@@ -99,8 +103,19 @@ export function RelatedCasesControl({
               className="z-50 rounded-lg border border-stone-700 bg-stone-900 p-2 shadow-xl shadow-black/40"
             >
               <p className="mb-1.5 px-1 text-[10px] font-medium tracking-wide text-stone-500 uppercase">Vincular a</p>
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                placeholder="Buscar caso pelo nome..."
+                autoFocus
+                className="mb-1.5 w-full rounded-md border border-stone-700 bg-stone-950/70 px-2 py-1 text-xs text-stone-100 outline-none focus:border-amber-600/60"
+              />
               {candidates?.length === 0 ? (
-                <p className="px-1 py-2 text-xs text-stone-600">Nenhum outro caso disponível pra vincular ainda.</p>
+                <p className="px-1 py-2 text-xs text-stone-600">
+                  {query.trim() ? 'Nenhum caso encontrado com esse nome.' : 'Nenhum outro caso disponível pra vincular ainda.'}
+                </p>
               ) : (
                 <div className="flex max-h-52 flex-col gap-0.5 overflow-y-auto">
                   {candidates?.map((c) => (
