@@ -60,15 +60,39 @@ export function PersonagensSection({
   onNotify?: (message: string, variant: 'success' | 'error' | 'info') => void
 }) {
   const [filters, setFilters] = useState<TraitFilters>(BLANK_TRAIT_FILTERS)
+  const [nameFilter, setNameFilter] = useState('')
+  const [organizationFilter, setOrganizationFilter] = useState('')
   const { exportData, importData } = useInvestigationData(character, update, onNotify)
-  const hasActiveFilter = hasActiveTraitFilter(filters)
+  const hasActiveFilter = hasActiveTraitFilter(filters) || nameFilter?.trim() !== '' || organizationFilter?.trim() !== ''
   const traitSuggestions = useMemo(
     () => collectTraitSuggestions(character.characterBank?.map((b) => b.traits)),
     [character.characterBank],
   )
-  const visibleBank = hasActiveFilter
-    ? character.characterBank.filter((b) => matchesTraitFilters(b.traits, filters))
-    : character.characterBank
+  const nameSuggestions = useMemo(
+    () => Array.from(new Set(character.characterBank.map((b) => b.name?.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR')),
+    [character.characterBank],
+  )
+  const organizationSuggestions = useMemo(
+    () => Array.from(new Set(character.characterBank.map((b) => b.organization?.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR')),
+    [character.characterBank],
+  )
+
+  const clearAllFilters = () => {
+    setFilters(BLANK_TRAIT_FILTERS)
+    setNameFilter('')
+    setOrganizationFilter('')
+  }
+
+  // Newest-added character first.
+  const visibleBank = character.characterBank
+    .filter((b) => {
+      const nameQuery = nameFilter?.trim().toLowerCase()
+      const orgQuery = organizationFilter?.trim().toLowerCase()
+      const nameMatch = nameQuery === '' || b.name.toLowerCase().includes(nameQuery)
+      const orgMatch = orgQuery === '' || b.organization.toLowerCase().includes(orgQuery)
+      return nameMatch && orgMatch && matchesTraitFilters(b.traits, filters)
+    })
+    .reverse()
 
   const addCharacter = () => update((c) => ({ ...c, characterBank: [...c.characterBank, createBankCharacter()] }))
 
@@ -158,12 +182,12 @@ export function PersonagensSection({
       </p>
 
       {character.characterBank?.length > 0 && (
-        <Panel title="Buscar por traços físicos" icon={<Search size={13} className="text-amber-600" />}>
+        <Panel title="Buscar personagens" icon={<Search size={13} className="text-amber-600" />}>
           <div className="mb-2.5 flex items-start justify-between gap-3">
-            <p className="text-xs text-stone-500">Filtra os personagens abaixo por qualquer combinação de traços.</p>
+            <p className="text-xs text-stone-500">Filtra os personagens abaixo por nome, organização ou traços físicos.</p>
             {hasActiveFilter && (
               <button
-                onClick={() => setFilters(BLANK_TRAIT_FILTERS)}
+                onClick={clearAllFilters}
                 className="flex shrink-0 items-center gap-1 text-xs font-medium text-stone-500 hover:text-amber-400"
               >
                 <X size={12} /> Limpar filtros
@@ -171,6 +195,20 @@ export function PersonagensSection({
             )}
           </div>
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
+            <FilterField
+              label="Nome"
+              value={nameFilter}
+              onChange={setNameFilter}
+              onClear={() => setNameFilter('')}
+              listId="character-name-suggestions"
+            />
+            <FilterField
+              label="Organização"
+              value={organizationFilter}
+              onChange={setOrganizationFilter}
+              onClear={() => setOrganizationFilter('')}
+              listId="character-organization-suggestions"
+            />
             {FILTERABLE_TRAIT_FIELDS?.map((field) => (
               <FilterField
                 key={field}
@@ -182,6 +220,16 @@ export function PersonagensSection({
               />
             ))}
           </div>
+          <datalist id="character-name-suggestions">
+            {nameSuggestions.map((value) => (
+              <option key={value} value={value} />
+            ))}
+          </datalist>
+          <datalist id="character-organization-suggestions">
+            {organizationSuggestions.map((value) => (
+              <option key={value} value={value} />
+            ))}
+          </datalist>
           {FILTERABLE_TRAIT_FIELDS?.map((field) => (
             <datalist key={field} id={traitSuggestionsListId(field)}>
               {traitSuggestions[field]?.map((value) => (
@@ -203,7 +251,7 @@ export function PersonagensSection({
       )}
 
       {hasActiveFilter && visibleBank?.length === 0 && character.characterBank?.length > 0 && (
-        <p className="text-sm text-stone-600">Nenhum personagem bate com esses traços.</p>
+        <p className="text-sm text-stone-600">Nenhum personagem bate com esse filtro.</p>
       )}
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
@@ -234,6 +282,13 @@ export function PersonagensSection({
                   <Trash2 size={13} />
                 </button>
               </div>
+              <TextField
+                label="Organização"
+                value={bankChar.organization}
+                onChange={(v) => updateCharacter(bankChar.id, { organization: v })}
+                list="character-organization-suggestions"
+                className="mb-2.5"
+              />
               <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
                 {FILTERABLE_TRAIT_FIELDS?.map((field) => (
                   <TextField

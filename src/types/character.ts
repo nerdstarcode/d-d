@@ -136,10 +136,11 @@ export interface BankCharacter {
   name: string
   traits: PhysicalTraits
   lifeStatus: LifeStatus
+  organization: string
 }
 
 export function createBankCharacter(): BankCharacter {
-  return { id: crypto.randomUUID(), name: '', traits: createPhysicalTraits(), lifeStatus: 'desconhecido' }
+  return { id: crypto.randomUUID(), name: '', traits: createPhysicalTraits(), lifeStatus: 'desconhecido', organization: '' }
 }
 
 export interface Witness {
