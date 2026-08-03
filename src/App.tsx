@@ -83,8 +83,8 @@ function App() {
               {tab === 'combate' && <CombateSection character={character} update={updateCharacter} />}
               {tab === 'conjuracao' && <ConjuracaoSection character={character} update={updateCharacter} />}
               {tab === 'antecedente' && <AntecedenteSection character={character} update={updateCharacter} />}
-              {tab === 'casos' && <CasosSection character={character} update={updateCharacter} />}
-              {tab === 'personagens' && <PersonagensSection character={character} update={updateCharacter} />}
+              {tab === 'casos' && <CasosSection character={character} update={updateCharacter} onNotify={push} />}
+              {tab === 'personagens' && <PersonagensSection character={character} update={updateCharacter} onNotify={push} />}
             </motion.div>
           </AnimatePresence>
         </AttributesProvider>

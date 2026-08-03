@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'motion/react'
-import { ChevronDown, Eye, FolderSearch, Link2, Plus, Search, Trash2, UserRoundSearch, X } from 'lucide-react'
+import { ChevronDown, Download, Eye, FolderSearch, Link2, Plus, Search, Trash2, Upload, UserRoundSearch, X } from 'lucide-react'
 import {
   createCase,
   createSuspect,
@@ -31,6 +31,7 @@ import { BankLinkControl } from '../BankLinkControl'
 import { FilterField } from '../FilterField'
 import { RelatedCasesControl } from '../RelatedCasesControl'
 import { Panel, TextAreaField, TextField } from '../ui'
+import { useInvestigationData } from '../../hooks/useInvestigationData'
 
 const STATUS_OPTIONS: { value: CaseStatus; label: string; classes: string }[] = [
   { value: 'aberto', label: 'Aberto', classes: 'border-amber-700/50 bg-amber-950/50 text-amber-400' },
@@ -79,13 +80,16 @@ function reliabilityBadgeClasses(value: number): string {
 export function CasosSection({
   character,
   update,
+  onNotify,
 }: {
   character: Character
   update: (patch: Partial<Character> | ((c: Character) => Character)) => void
+  onNotify?: (message: string, variant: 'success' | 'error' | 'info') => void
 }) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const [subTab, setSubTabState] = useState<Record<string, 'testemunhas' | 'suspeitos'>>({})
   const [filters, setFilters] = useState<TraitFilters>(BLANK_TRAIT_FILTERS)
+  const { exportData, importData } = useInvestigationData(character, update, onNotify)
   const caseRefs = useRef(new Map<string, HTMLDivElement>())
 
   const toggleCollapsed = (id: string) => setCollapsed((prev) => ({ ...prev, [id]: !prev[id] }))
@@ -263,14 +267,30 @@ export function CasosSection({
               : `${character.cases.length} caso${character.cases.length > 1 ? 's' : ''}`}
           </span>
         </div>
-        <motion.button
-          whileHover={{ y: -1 }}
-          whileTap={{ scale: 0.96 }}
-          onClick={addCase}
-          className="flex items-center gap-1.5 rounded-md border border-amber-600/50 bg-amber-600/15 px-3 py-1.5 text-xs font-medium text-amber-400 hover:bg-amber-600/25"
-        >
-          <Plus size={14} /> Novo caso
-        </motion.button>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={importData}
+            title="Importar casos e personagens de um arquivo"
+            className="flex items-center gap-1.5 rounded-md border border-stone-700 bg-stone-900 px-2.5 py-1.5 text-xs font-medium text-stone-400 hover:border-stone-600 hover:text-stone-200"
+          >
+            <Upload size={13} /> Importar
+          </button>
+          <button
+            onClick={exportData}
+            title="Exportar casos e personagens para um arquivo"
+            className="flex items-center gap-1.5 rounded-md border border-stone-700 bg-stone-900 px-2.5 py-1.5 text-xs font-medium text-stone-400 hover:border-stone-600 hover:text-stone-200"
+          >
+            <Download size={13} /> Exportar
+          </button>
+          <motion.button
+            whileHover={{ y: -1 }}
+            whileTap={{ scale: 0.96 }}
+            onClick={addCase}
+            className="flex items-center gap-1.5 rounded-md border border-amber-600/50 bg-amber-600/15 px-3 py-1.5 text-xs font-medium text-amber-400 hover:bg-amber-600/25"
+          >
+            <Plus size={14} /> Novo caso
+          </motion.button>
+        </div>
       </div>
 
       {character.cases.length > 0 && (

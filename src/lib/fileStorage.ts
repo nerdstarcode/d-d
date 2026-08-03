@@ -20,19 +20,23 @@ declare global {
 export const supportsFileSystemAccess =
   typeof window !== 'undefined' && 'showOpenFilePicker' in window && 'showSaveFilePicker' in window
 
-const JSON_PICKER_OPTIONS = {
-  types: [
-    {
-      description: 'Ficha de personagem (JSON)',
-      accept: { 'application/json': ['.json'] },
-    },
-  ],
+function jsonPickerOptions(description: string) {
+  return {
+    types: [
+      {
+        description,
+        accept: { 'application/json': ['.json'] },
+      },
+    ],
+  }
 }
 
-export async function pickAndReadFile(): Promise<{ handle: FileSystemFileHandleLike; text: string } | null> {
+export async function pickAndReadFile(
+  description = 'Ficha de personagem (JSON)',
+): Promise<{ handle: FileSystemFileHandleLike; text: string } | null> {
   if (!window.showOpenFilePicker) return null
   try {
-    const [handle] = await window.showOpenFilePicker(JSON_PICKER_OPTIONS)
+    const [handle] = await window.showOpenFilePicker(jsonPickerOptions(description))
     const file = await handle.getFile()
     const text = await file.text()
     return { handle, text }
@@ -48,10 +52,13 @@ export async function writeToHandle(handle: FileSystemFileHandleLike, text: stri
   await writable.close()
 }
 
-export async function pickAndCreateFile(suggestedName: string): Promise<FileSystemFileHandleLike | null> {
+export async function pickAndCreateFile(
+  suggestedName: string,
+  description = 'Ficha de personagem (JSON)',
+): Promise<FileSystemFileHandleLike | null> {
   if (!window.showSaveFilePicker) return null
   try {
-    return await window.showSaveFilePicker({ ...JSON_PICKER_OPTIONS, suggestedName })
+    return await window.showSaveFilePicker({ ...jsonPickerOptions(description), suggestedName })
   } catch (err) {
     if ((err as DOMException)?.name === 'AbortError') return null
     throw err

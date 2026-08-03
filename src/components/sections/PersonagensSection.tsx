@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { motion } from 'motion/react'
-import { Plus, Search, Trash2, Users, X } from 'lucide-react'
+import { Download, Plus, Search, Trash2, Upload, Users, X } from 'lucide-react'
 import {
   createBankCharacter,
   FILTERABLE_TRAIT_FIELDS,
@@ -19,15 +19,19 @@ import {
 } from '../../lib/traitFilter'
 import { FilterField } from '../FilterField'
 import { Panel, TextAreaField, TextField } from '../ui'
+import { useInvestigationData } from '../../hooks/useInvestigationData'
 
 export function PersonagensSection({
   character,
   update,
+  onNotify,
 }: {
   character: Character
   update: (patch: Partial<Character> | ((c: Character) => Character)) => void
+  onNotify?: (message: string, variant: 'success' | 'error' | 'info') => void
 }) {
   const [filters, setFilters] = useState<TraitFilters>(BLANK_TRAIT_FILTERS)
+  const { exportData, importData } = useInvestigationData(character, update, onNotify)
   const hasActiveFilter = hasActiveTraitFilter(filters)
   const traitSuggestions = useMemo(
     () => collectTraitSuggestions(character.characterBank?.map((b) => b.traits)),
@@ -89,14 +93,30 @@ export function PersonagensSection({
               : `${character.characterBank.length} ${character.characterBank.length > 1 ? 'personagens' : 'personagem'}`}
           </span>
         </div>
-        <motion.button
-          whileHover={{ y: -1 }}
-          whileTap={{ scale: 0.96 }}
-          onClick={addCharacter}
-          className="flex items-center gap-1.5 rounded-md border border-amber-600/50 bg-amber-600/15 px-3 py-1.5 text-xs font-medium text-amber-400 hover:bg-amber-600/25"
-        >
-          <Plus size={14} /> Novo personagem
-        </motion.button>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={importData}
+            title="Importar casos e personagens de um arquivo"
+            className="flex items-center gap-1.5 rounded-md border border-stone-700 bg-stone-900 px-2.5 py-1.5 text-xs font-medium text-stone-400 hover:border-stone-600 hover:text-stone-200"
+          >
+            <Upload size={13} /> Importar
+          </button>
+          <button
+            onClick={exportData}
+            title="Exportar casos e personagens para um arquivo"
+            className="flex items-center gap-1.5 rounded-md border border-stone-700 bg-stone-900 px-2.5 py-1.5 text-xs font-medium text-stone-400 hover:border-stone-600 hover:text-stone-200"
+          >
+            <Download size={13} /> Exportar
+          </button>
+          <motion.button
+            whileHover={{ y: -1 }}
+            whileTap={{ scale: 0.96 }}
+            onClick={addCharacter}
+            className="flex items-center gap-1.5 rounded-md border border-amber-600/50 bg-amber-600/15 px-3 py-1.5 text-xs font-medium text-amber-400 hover:bg-amber-600/25"
+          >
+            <Plus size={14} /> Novo personagem
+          </motion.button>
+        </div>
       </div>
 
       <p className="text-xs text-stone-500">
