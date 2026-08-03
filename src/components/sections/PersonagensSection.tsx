@@ -1,12 +1,15 @@
 import { useMemo, useState } from 'react'
 import { motion } from 'motion/react'
-import { Download, Plus, Search, Trash2, Upload, Users, X } from 'lucide-react'
+import { Download, Eye, Plus, Search, Skull, Trash2, Upload, UserRoundSearch, Users, X } from 'lucide-react'
 import {
   createBankCharacter,
   FILTERABLE_TRAIT_FIELDS,
+  LIFE_STATUS_LABELS,
   TRAIT_FIELD_LABELS,
   type BankCharacter,
   type Character,
+  type InvestigationCase,
+  type LifeStatus,
   type TraitField,
 } from '../../types/character'
 import {
@@ -20,6 +23,32 @@ import {
 import { FilterField } from '../FilterField'
 import { Panel, TextAreaField, TextField } from '../ui'
 import { useInvestigationData } from '../../hooks/useInvestigationData'
+
+const LIFE_STATUS_OPTIONS: { value: LifeStatus; classes: string }[] = [
+  { value: 'vivo', classes: 'border-emerald-700/50 bg-emerald-950/50 text-emerald-400' },
+  { value: 'morto', classes: 'border-red-700/50 bg-red-950/50 text-red-400' },
+  { value: 'desconhecido', classes: 'border-stone-700 bg-stone-900 text-stone-400' },
+]
+
+interface CaseLink {
+  caseId: string
+  caseTitle: string
+  role: 'testemunha' | 'suspeito' | 'vítima'
+}
+
+const ROLE_ICONS = { testemunha: Eye, suspeito: UserRoundSearch, vítima: Skull }
+
+/** Every case where this bank character is linked as a witness, suspect, or victim. */
+function findCaseLinks(cases: InvestigationCase[], bankCharacterId: string): CaseLink[] {
+  const links: CaseLink[] = []
+  for (const cs of cases) {
+    const caseTitle = cs.title || 'Caso sem título'
+    if (cs.witnesses?.some((w) => w.linkedCharacterId === bankCharacterId)) links.push({ caseId: cs.id, caseTitle, role: 'testemunha' })
+    if (cs.suspects?.some((s) => s.linkedCharacterId === bankCharacterId)) links.push({ caseId: cs.id, caseTitle, role: 'suspeito' })
+    if (cs.victims?.some((v) => v.linkedCharacterId === bankCharacterId)) links.push({ caseId: cs.id, caseTitle, role: 'vítima' })
+  }
+  return links
+}
 
 export function PersonagensSection({
   character,
@@ -48,7 +77,7 @@ export function PersonagensSection({
       const characterBank = c.characterBank?.map((b) => (b.id === id ? { ...b, ...patch } : b))
       const updated = characterBank.find((b) => b.id === id)
       if (!updated) return { ...c, characterBank }
-      // Every witness/suspect linked to this character mirrors its name and traits.
+      // Every witness/suspect/victim linked to this character mirrors its name and traits.
       const cases = c.cases?.map((cs) => ({
         ...cs,
         witnesses: cs.witnesses?.map((w) =>
@@ -57,6 +86,9 @@ export function PersonagensSection({
         suspects: cs.suspects?.map((s) =>
           s.linkedCharacterId === id ? { ...s, name: updated.name, traits: updated.traits } : s,
         ),
+        victims: cs.victims?.map((v) =>
+          v.linkedCharacterId === id ? { ...v, name: updated.name, traits: updated.traits } : v,
+        ),
       }))
       return { ...c, characterBank, cases }
     })
@@ -64,7 +96,7 @@ export function PersonagensSection({
   const removeCharacter = (id: string) => {
     if (
       !confirm(
-        'Remover este personagem do banco? Testemunhas e suspeitos que o usam mantêm os dados atuais, mas deixam de estar vinculados.',
+        'Remover este personagem do banco? Testemunhas, suspeitos e vítimas que o usam mantêm os dados atuais, mas deixam de estar vinculados.',
       )
     )
       return
@@ -75,6 +107,7 @@ export function PersonagensSection({
         ...cs,
         witnesses: cs.witnesses?.map((w) => (w.linkedCharacterId === id ? { ...w, linkedCharacterId: undefined } : w)),
         suspects: cs.suspects?.map((s) => (s.linkedCharacterId === id ? { ...s, linkedCharacterId: undefined } : s)),
+        victims: cs.victims?.map((v) => (v.linkedCharacterId === id ? { ...v, linkedCharacterId: undefined } : v)),
       })),
     }))
   }
@@ -120,8 +153,8 @@ export function PersonagensSection({
       </div>
 
       <p className="text-xs text-stone-500">
-        Personagens salvos aqui podem ser vinculados a testemunhas e suspeitos em qualquer caso (botão "Vincular" ao lado do
-        nome). Editar um personagem aqui atualiza automaticamente todos os lugares onde ele está vinculado.
+        Personagens salvos aqui podem ser vinculados a testemunhas, suspeitos e vítimas em qualquer caso (botão "Vincular" ao
+        lado do nome). Editar um personagem aqui atualiza automaticamente todos os lugares onde ele está vinculado.
       </p>
 
       {character.characterBank?.length > 0 && (
@@ -174,38 +207,71 @@ export function PersonagensSection({
       )}
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        {visibleBank?.map((bankChar) => (
-          <Panel key={bankChar.id}>
-            <div className="mb-2.5 flex items-center gap-2">
-              <input
-                value={bankChar.name}
-                onChange={(e) => updateCharacter(bankChar.id, { name: e.target.value })}
-                placeholder="Nome do personagem"
-                className="min-w-0 flex-1 rounded-md border border-stone-700 bg-stone-900 px-2 py-1.5 text-sm font-medium text-stone-100 outline-none focus:border-amber-600/60"
-              />
-              <button onClick={() => removeCharacter(bankChar.id)} className="shrink-0 text-stone-600 hover:text-red-500">
-                <Trash2 size={13} />
-              </button>
-            </div>
-            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-              {FILTERABLE_TRAIT_FIELDS?.map((field) => (
-                <TextField
-                  key={field}
-                  label={TRAIT_FIELD_LABELS[field]}
-                  value={bankChar.traits[field]}
-                  onChange={(v) => onTraitChange(bankChar, field, v)}
+        {visibleBank?.map((bankChar) => {
+          const lifeStatus = LIFE_STATUS_OPTIONS.find((o) => o.value === bankChar.lifeStatus) ?? LIFE_STATUS_OPTIONS[2]
+          const caseLinks = findCaseLinks(character.cases, bankChar.id)
+          return (
+            <Panel key={bankChar.id}>
+              <div className="mb-2.5 flex items-center gap-2">
+                <input
+                  value={bankChar.name}
+                  onChange={(e) => updateCharacter(bankChar.id, { name: e.target.value })}
+                  placeholder="Nome do personagem"
+                  className="min-w-0 flex-1 rounded-md border border-stone-700 bg-stone-900 px-2 py-1.5 text-sm font-medium text-stone-100 outline-none focus:border-amber-600/60"
                 />
-              ))}
-            </div>
-            <TextAreaField
-              label={TRAIT_FIELD_LABELS.description}
-              rows={2}
-              value={bankChar.traits.description}
-              onChange={(v) => onTraitChange(bankChar, 'description', v)}
-              className="mt-2.5"
-            />
-          </Panel>
-        ))}
+                <select
+                  value={bankChar.lifeStatus}
+                  onChange={(e) => updateCharacter(bankChar.id, { lifeStatus: e.target.value as LifeStatus })}
+                  className={`shrink-0 rounded-md border px-2 py-1 text-[11px] font-medium outline-none ${lifeStatus.classes}`}
+                >
+                  {LIFE_STATUS_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value} className="bg-stone-900 text-stone-200">
+                      {LIFE_STATUS_LABELS[opt.value]}
+                    </option>
+                  ))}
+                </select>
+                <button onClick={() => removeCharacter(bankChar.id)} className="shrink-0 text-stone-600 hover:text-red-500">
+                  <Trash2 size={13} />
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+                {FILTERABLE_TRAIT_FIELDS?.map((field) => (
+                  <TextField
+                    key={field}
+                    label={TRAIT_FIELD_LABELS[field]}
+                    value={bankChar.traits[field]}
+                    onChange={(v) => onTraitChange(bankChar, field, v)}
+                  />
+                ))}
+              </div>
+              <TextAreaField
+                label={TRAIT_FIELD_LABELS.description}
+                rows={2}
+                value={bankChar.traits.description}
+                onChange={(v) => onTraitChange(bankChar, 'description', v)}
+                className="mt-2.5"
+              />
+
+              {caseLinks.length > 0 && (
+                <div className="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-stone-800 pt-2.5">
+                  <span className="shrink-0 text-[10px] font-medium tracking-wide text-stone-500 uppercase">Vinculado em</span>
+                  {caseLinks.map((link) => {
+                    const RoleIcon = ROLE_ICONS[link.role]
+                    return (
+                      <span
+                        key={`${link.caseId}-${link.role}`}
+                        className="flex items-center gap-1 rounded-md border border-stone-700 bg-stone-900 px-1.5 py-0.5 text-[11px] text-stone-400"
+                      >
+                        <RoleIcon size={11} className="shrink-0 text-stone-500" />
+                        {link.caseTitle} <span className="text-stone-600">· {link.role}</span>
+                      </span>
+                    )
+                  })}
+                </div>
+              )}
+            </Panel>
+          )
+        })}
       </div>
     </div>
   )

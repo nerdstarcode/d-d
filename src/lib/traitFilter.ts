@@ -15,7 +15,7 @@ export const BLANK_TRAIT_FILTERS: TraitFilters = {
 export const traitSuggestionsListId = (field: FilterableTraitField) => `trait-suggestions-${field}`
 
 export function hasActiveTraitFilter(filters: TraitFilters): boolean {
-  return Object.values(filters).some((v) => v?.trim() !== '')
+  return Object.values(filters)?.some((v) => v?.trim() !== '')
 }
 
 /** Whether every non-empty filter field is a case-insensitive substring match of the corresponding trait. */

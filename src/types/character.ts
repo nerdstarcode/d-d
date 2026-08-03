@@ -122,15 +122,24 @@ export function createPhysicalTraits(): PhysicalTraits {
   return { size: '', gender: '', hairColor: '', hairType: '', eyeColor: '', description: '' }
 }
 
-/** A reusable person template. Witnesses/suspects across any case can link to one to share its name and traits. */
+export type LifeStatus = 'vivo' | 'morto' | 'desconhecido'
+
+export const LIFE_STATUS_LABELS: Record<LifeStatus, string> = {
+  vivo: 'Vivo',
+  morto: 'Morto',
+  desconhecido: 'Desconhecido',
+}
+
+/** A reusable person template. Witnesses/suspects/victims across any case can link to one to share its name and traits. */
 export interface BankCharacter {
   id: string
   name: string
   traits: PhysicalTraits
+  lifeStatus: LifeStatus
 }
 
 export function createBankCharacter(): BankCharacter {
-  return { id: crypto.randomUUID(), name: '', traits: createPhysicalTraits() }
+  return { id: crypto.randomUUID(), name: '', traits: createPhysicalTraits(), lifeStatus: 'desconhecido' }
 }
 
 export interface Witness {
