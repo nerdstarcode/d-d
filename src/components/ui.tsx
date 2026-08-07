@@ -1,5 +1,6 @@
 import { type ChangeEvent, type ReactNode } from 'react'
 import { motion } from 'motion/react'
+import { Heart } from 'lucide-react'
 
 export function Panel({
   title,
@@ -152,6 +153,54 @@ export function StatCircle({ label, value, sub }: { label: string; value: ReactN
       <span className="text-xl font-bold text-stone-100">{value}</span>
       <span className="text-[10px] font-medium tracking-wide text-stone-500 uppercase">{label}</span>
       {sub && <span className="text-[10px] text-stone-600">{sub}</span>}
+    </div>
+  )
+}
+
+export function HealthBar({
+  current,
+  max,
+  temp,
+  onCurrentChange,
+  onMaxChange,
+  onTempChange,
+}: {
+  current: number
+  max: number
+  temp: number
+  onCurrentChange: (v: number) => void
+  onMaxChange: (v: number) => void
+  onTempChange: (v: number) => void
+}) {
+  const pct = max > 0 ? Math.max(0, Math.min(100, (Math.abs(current) / max) * 100)) : 0
+  const isNegative = current < 0
+
+  return (
+    <div className="rounded-xl border border-stone-800 bg-stone-950/60 p-4">
+      <div className="mb-2 flex items-center justify-between">
+        <span className="flex items-center gap-1.5 text-[10px] font-medium tracking-wide text-stone-500 uppercase">
+          <Heart size={12} className="text-red-500" /> Pontos de vida
+        </span>
+        <span className="font-mono text-sm text-stone-300">
+          {current} / {max}
+          {temp > 0 && <span className="text-sky-400"> (+{temp})</span>}
+        </span>
+      </div>
+      <div className="h-3 w-full overflow-hidden rounded-full bg-stone-900">
+        <motion.div
+          className={`h-full rounded-full bg-gradient-to-r ${
+            isNegative ? 'from-red-950 via-red-800 to-red-600' : 'from-emerald-700 via-emerald-600 to-emerald-500'
+          }`}
+          initial={false}
+          animate={{ width: `${pct}%` }}
+          transition={{ type: 'spring', stiffness: 120, damping: 20 }}
+        />
+      </div>
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        <NumberField label="Atuais" value={current} onChange={onCurrentChange} />
+        <NumberField label="Máximos" value={max} onChange={onMaxChange} />
+        <NumberField label="Temporários" value={temp} onChange={onTempChange} />
+      </div>
     </div>
   )
 }

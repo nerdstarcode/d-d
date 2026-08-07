@@ -1,9 +1,9 @@
 import { motion } from 'motion/react'
-import { Heart, Shield, Skull, Zap } from 'lucide-react'
+import { Shield, Skull, Zap } from 'lucide-react'
 import { ABILITY_LABELS, SKILL_DEFS, type AbilityKey, type Character } from '../../types/character'
 import { useAttributes } from '../../context/AttributesContext'
 import { DeDAttributes } from '../../lib/DeDAttributes'
-import { Checkbox, ModifierBadge, NumberField, Panel, StatCircle, TextAreaField, TextField } from '../ui'
+import { Checkbox, HealthBar, ModifierBadge, NumberField, Panel, StatCircle, TextAreaField, TextField } from '../ui'
 
 const ABILITY_ORDER: AbilityKey[] = ['for', 'des', 'con', 'int', 'sab', 'car']
 
@@ -16,8 +16,6 @@ export function PrincipalSection({
 }) {
   const { attrs, setAbilityScore, setProficiencyBonus, setInspiration, toggleSavingThrow, toggleSkillProficiency } =
     useAttributes()
-
-  const hpPct = character.hpMax > 0 ? Math.max(0, Math.min(100, (character.hpCurrent / character.hpMax) * 100)) : 0
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
@@ -200,28 +198,15 @@ export function PrincipalSection({
           </div>
         </div>
 
-        <div className="mt-4 rounded-xl border border-stone-800 bg-stone-950/60 p-4">
-          <div className="mb-2 flex items-center justify-between">
-            <span className="flex items-center gap-1.5 text-[10px] font-medium tracking-wide text-stone-500 uppercase">
-              <Heart size={12} className="text-red-500" /> Pontos de vida
-            </span>
-            <span className="font-mono text-sm text-stone-300">
-              {character.hpCurrent} / {character.hpMax}
-              {character.hpTemp > 0 && <span className="text-sky-400"> (+{character.hpTemp})</span>}
-            </span>
-          </div>
-          <div className="h-3 w-full overflow-hidden rounded-full bg-stone-900">
-            <motion.div
-              className="h-full rounded-full bg-gradient-to-r from-red-700 via-red-600 to-red-500"
-              animate={{ width: `${hpPct}%` }}
-              transition={{ type: 'spring', stiffness: 120, damping: 20 }}
-            />
-          </div>
-          <div className="mt-3 grid grid-cols-3 gap-2">
-            <NumberField label="Atuais" value={character.hpCurrent} onChange={(v) => update({ hpCurrent: v })} />
-            <NumberField label="Máximos" value={character.hpMax} onChange={(v) => update({ hpMax: v })} />
-            <NumberField label="Temporários" value={character.hpTemp} onChange={(v) => update({ hpTemp: v })} />
-          </div>
+        <div className="mt-4">
+          <HealthBar
+            current={character.hpCurrent}
+            max={character.hpMax}
+            temp={character.hpTemp}
+            onCurrentChange={(v) => update({ hpCurrent: v })}
+            onMaxChange={(v) => update({ hpMax: v })}
+            onTempChange={(v) => update({ hpTemp: v })}
+          />
         </div>
       </Panel>
 
