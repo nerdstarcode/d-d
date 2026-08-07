@@ -176,20 +176,28 @@ export function HealthBar({
   const isNegative = current < 0
 
   return (
-    <div className="rounded-xl border border-stone-800 bg-stone-950/60 p-4">
+    <div
+      className={`rounded-xl border bg-stone-950/60 p-4 transition-colors duration-300 ${
+        isNegative
+          ? 'border-red-700/70 shadow-[0_0_14px_-3px_rgba(220,38,38,0.55)]'
+          : 'border-stone-800'
+      }`}
+    >
       <div className="mb-2 flex items-center justify-between">
         <span className="flex items-center gap-1.5 text-[10px] font-medium tracking-wide text-stone-500 uppercase">
           <Heart size={12} className="text-red-500" /> Pontos de vida
         </span>
-        <span className="font-mono text-sm text-stone-300">
+        <span className={`font-mono text-sm transition-colors duration-300 ${isNegative ? 'text-red-500' : 'text-stone-300'}`}>
           {current} / {max}
           {temp > 0 && <span className="text-sky-400"> (+{temp})</span>}
         </span>
       </div>
       <div className="h-3 w-full overflow-hidden rounded-full bg-stone-900">
         <motion.div
-          className={`h-full rounded-full bg-gradient-to-r ${
-            isNegative ? 'from-red-950 via-red-800 to-red-600' : 'from-emerald-700 via-emerald-600 to-emerald-500'
+          className={`h-full rounded-full bg-gradient-to-r transition-shadow duration-300 ${
+            isNegative
+              ? 'from-red-950 via-red-800 to-red-600 shadow-[0_0_8px_1px_rgba(239,68,68,0.6)]'
+              : 'from-emerald-700 via-emerald-600 to-emerald-500'
           }`}
           initial={false}
           animate={{ width: `${pct}%` }}
