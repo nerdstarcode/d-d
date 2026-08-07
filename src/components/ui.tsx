@@ -111,6 +111,16 @@ export function TextAreaField({
   )
 }
 
+export function Badge({ children, className = 'border-stone-700 bg-stone-900 text-stone-400' }: { children: ReactNode; className?: string }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${className}`}
+    >
+      {children}
+    </span>
+  )
+}
+
 export function ModifierBadge({ value }: { value: number }) {
   const text = value >= 0 ? `+${value}` : `${value}`
   return (

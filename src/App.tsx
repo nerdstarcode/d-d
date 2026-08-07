@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { BookOpen, FolderSearch, ScrollText, Sparkles, Swords, Users } from 'lucide-react'
+import { BookMarked, BookOpen, FolderSearch, ScrollText, Sparkles, Swords, Users } from 'lucide-react'
 import { TopBar } from './components/TopBar'
 import { Tabs, type TabDef } from './components/Tabs'
 import { ToastViewport } from './components/Toast'
@@ -10,6 +10,7 @@ import { ConjuracaoSection } from './components/sections/ConjuracaoSection'
 import { AntecedenteSection } from './components/sections/AntecedenteSection'
 import { CasosSection } from './components/sections/CasosSection'
 import { PersonagensSection } from './components/sections/PersonagensSection'
+import { MagiasSection } from './components/sections/MagiasSection'
 import { AttributesProvider } from './context/AttributesContext'
 import { useCharacterFile } from './hooks/useCharacterFile'
 import { useToasts } from './hooks/useToasts'
@@ -19,6 +20,7 @@ const TABS: TabDef[] = [
   { key: 'principal', label: 'Principal', icon: <ScrollText size={15} /> },
   { key: 'combate', label: 'Combate & Itens', icon: <Swords size={15} /> },
   { key: 'conjuracao', label: 'Conjuração', icon: <Sparkles size={15} /> },
+  { key: 'magias', label: 'Magias', icon: <BookMarked size={15} /> },
   { key: 'antecedente', label: 'Antecedente', icon: <BookOpen size={15} /> },
   { key: 'casos', label: 'Casos', icon: <FolderSearch size={15} /> },
   { key: 'personagens', label: 'Personagens', icon: <Users size={15} /> },
@@ -82,6 +84,7 @@ function App() {
               {tab === 'principal' && <PrincipalSection character={character} update={updateCharacter} />}
               {tab === 'combate' && <CombateSection character={character} update={updateCharacter} />}
               {tab === 'conjuracao' && <ConjuracaoSection character={character} update={updateCharacter} />}
+              {tab === 'magias' && <MagiasSection character={character} update={updateCharacter} onNotify={push} />}
               {tab === 'antecedente' && <AntecedenteSection character={character} update={updateCharacter} />}
               {tab === 'casos' && <CasosSection character={character} update={updateCharacter} onNotify={push} />}
               {tab === 'personagens' && <PersonagensSection character={character} update={updateCharacter} onNotify={push} />}
