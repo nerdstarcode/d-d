@@ -9,6 +9,7 @@ export const BLANK_TRAIT_FILTERS: TraitFilters = {
   hairColor: '',
   hairType: '',
   eyeColor: '',
+  skinColor: '',
 }
 
 /** id of the `<datalist>` that offers autocomplete suggestions for a given trait filter field. */
@@ -22,7 +23,7 @@ export function hasActiveTraitFilter(filters: TraitFilters): boolean {
 export function matchesTraitFilters(traits: PhysicalTraits, filters: TraitFilters): boolean {
   return FILTERABLE_TRAIT_FIELDS.every((field) => {
     const query = filters[field]?.trim().toLowerCase()
-    return query === '' || traits[field].toLowerCase()?.includes(query)
+    return query === '' || (traits[field]?.toLowerCase().includes(query) ?? false)
   })
 }
 
@@ -34,6 +35,7 @@ export function collectTraitSuggestions(peopleTraits: PhysicalTraits[]): Record<
     hairColor: new Set(),
     hairType: new Set(),
     eyeColor: new Set(),
+    skinColor: new Set(),
   }
   for (const traits of peopleTraits) {
     for (const field of FILTERABLE_TRAIT_FIELDS) {
@@ -48,5 +50,6 @@ export function collectTraitSuggestions(peopleTraits: PhysicalTraits[]): Record<
     hairColor: [...seen.hairColor].sort(sortPt),
     hairType: [...seen.hairType].sort(sortPt),
     eyeColor: [...seen.eyeColor].sort(sortPt),
+    skinColor: [...seen.skinColor].sort(sortPt),
   }
 }

@@ -96,7 +96,7 @@ export interface Testimony {
 }
 
 /** The physical-description fields shared by witnesses and suspects, so the two can be compared and searched the same way. */
-export type TraitField = 'size' | 'gender' | 'hairColor' | 'hairType' | 'eyeColor' | 'description'
+export type TraitField = 'size' | 'gender' | 'hairColor' | 'hairType' | 'eyeColor' | 'skinColor' | 'description'
 
 export const TRAIT_FIELD_LABELS: Record<TraitField, string> = {
   size: 'Tamanho',
@@ -104,6 +104,7 @@ export const TRAIT_FIELD_LABELS: Record<TraitField, string> = {
   hairColor: 'Cor do cabelo',
   hairType: 'Tipo de cabelo',
   eyeColor: 'Cor dos olhos',
+  skinColor: 'Cor de pele',
   description: 'Descrição',
 }
 
@@ -114,12 +115,13 @@ export const FILTERABLE_TRAIT_FIELDS: Exclude<TraitField, 'description'>[] = [
   'hairColor',
   'hairType',
   'eyeColor',
+  'skinColor',
 ]
 
 export type PhysicalTraits = Record<TraitField, string>
 
 export function createPhysicalTraits(): PhysicalTraits {
-  return { size: '', gender: '', hairColor: '', hairType: '', eyeColor: '', description: '' }
+  return { size: '', gender: '', hairColor: '', hairType: '', eyeColor: '', skinColor: '', description: '' }
 }
 
 export type LifeStatus = 'vivo' | 'morto' | 'desconhecido'

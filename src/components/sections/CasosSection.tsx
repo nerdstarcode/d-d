@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import {
   createCase,
+  createPhysicalTraits,
   createSuspect,
   createTestimony,
   createVictim,
@@ -738,7 +739,8 @@ function WitnessCard({
   onLinkBank: (bankId: string) => void
   onUnlinkBank: () => void
 }) {
-  const onTraitChange = (field: TraitField, value: string) => onChange({ traits: { ...witness.traits, [field]: value } })
+  const onTraitChange = (field: TraitField, value: string) =>
+    onChange({ traits: { ...createPhysicalTraits(), ...witness.traits, [field]: value } })
   const isLinked = !!witness.linkedCharacterId
 
   return (
@@ -784,7 +786,7 @@ function WitnessCard({
               <TextField
                 key={field}
                 label={TRAIT_FIELD_LABELS[field]}
-                value={witness.traits[field]}
+                value={witness.traits?.[field] ?? ''}
                 onChange={(v) => onTraitChange(field, v)}
               />
             ))}
@@ -792,7 +794,7 @@ function WitnessCard({
           <TextAreaField
             label={TRAIT_FIELD_LABELS.description}
             rows={2}
-            value={witness.traits.description}
+            value={witness.traits?.description ?? ''}
             onChange={(v) => onTraitChange('description', v)}
             className="mb-3"
           />
@@ -884,7 +886,8 @@ function SourcedPersonCard({
   onLinkBank: (bankId: string) => void
   onUnlinkBank: () => void
 }) {
-  const onTraitChange = (field: TraitField, value: string) => onChange({ traits: { ...person.traits, [field]: value } })
+  const onTraitChange = (field: TraitField, value: string) =>
+    onChange({ traits: { ...createPhysicalTraits(), ...person.traits, [field]: value } })
   const isLinked = !!person.linkedCharacterId
 
   return (
@@ -931,7 +934,7 @@ function SourcedPersonCard({
               <SourcedField
                 key={field}
                 label={TRAIT_FIELD_LABELS[field]}
-                value={person.traits[field]}
+                value={person.traits?.[field] ?? ''}
                 onChange={(v) => onTraitChange(field, v)}
                 witnesses={witnesses}
                 selected={person.sources[field] ?? []}
@@ -943,7 +946,7 @@ function SourcedPersonCard({
           <SourcedField
             label={TRAIT_FIELD_LABELS.description}
             textarea
-            value={person.traits.description}
+            value={person.traits?.description ?? ''}
             onChange={(v) => onTraitChange('description', v)}
             witnesses={witnesses}
             selected={person.sources.description ?? []}

@@ -3,6 +3,7 @@ import { motion } from 'motion/react'
 import { Download, Eye, Plus, Search, Skull, Trash2, Upload, UserRoundSearch, Users, X } from 'lucide-react'
 import {
   createBankCharacter,
+  createPhysicalTraits,
   FILTERABLE_TRAIT_FIELDS,
   LIFE_STATUS_LABELS,
   TRAIT_FIELD_LABELS,
@@ -62,8 +63,15 @@ export function PersonagensSection({
   const [filters, setFilters] = useState<TraitFilters>(BLANK_TRAIT_FILTERS)
   const [nameFilter, setNameFilter] = useState('')
   const [organizationFilter, setOrganizationFilter] = useState('')
+  const [caseFilter, setCaseFilter] = useState('')
+  const [lifeStatusFilter, setLifeStatusFilter] = useState<LifeStatus | ''>('')
   const { exportData, importData } = useInvestigationData(character, update, onNotify)
-  const hasActiveFilter = hasActiveTraitFilter(filters) || nameFilter?.trim() !== '' || organizationFilter?.trim() !== ''
+  const hasActiveFilter =
+    hasActiveTraitFilter(filters) ||
+    nameFilter?.trim() !== '' ||
+    organizationFilter?.trim() !== '' ||
+    caseFilter !== '' ||
+    lifeStatusFilter !== ''
   const traitSuggestions = useMemo(
     () => collectTraitSuggestions(character.characterBank?.map((b) => b.traits)),
     [character.characterBank],
@@ -76,21 +84,36 @@ export function PersonagensSection({
     () => Array.from(new Set(character.characterBank.map((b) => b.organization?.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR')),
     [character.characterBank],
   )
+  const caseOptions = useMemo(
+    () => character.cases?.map((cs) => ({ id: cs.id, title: cs.title?.trim() || 'Caso sem título' })) ?? [],
+    [character.cases],
+  )
 
   const clearAllFilters = () => {
     setFilters(BLANK_TRAIT_FILTERS)
     setNameFilter('')
     setOrganizationFilter('')
+    setCaseFilter('')
+    setLifeStatusFilter('')
   }
 
+  // Every bank character paired with the cases it's linked to, computed once so filtering and rendering share the same lookup.
+  const bankWithLinks = useMemo(
+    () =>
+      character.characterBank?.map((b) => ({ bankChar: b, caseLinks: findCaseLinks(character.cases ?? [], b.id) })) ?? [],
+    [character.characterBank, character.cases],
+  )
+
   // Newest-added character first.
-  const visibleBank = character.characterBank
-    .filter((b) => {
+  const visibleBank = bankWithLinks
+    .filter(({ bankChar: b, caseLinks }) => {
       const nameQuery = nameFilter?.trim().toLowerCase()
       const orgQuery = organizationFilter?.trim().toLowerCase()
-      const nameMatch = nameQuery === '' || b.name.toLowerCase().includes(nameQuery)
-      const orgMatch = orgQuery === '' || b.organization.toLowerCase().includes(orgQuery)
-      return nameMatch && orgMatch && matchesTraitFilters(b.traits, filters)
+      const nameMatch = nameQuery === '' || b.name?.toLowerCase().includes(nameQuery)
+      const orgMatch = orgQuery === '' || b.organization?.toLowerCase().includes(orgQuery)
+      const caseMatch = caseFilter === '' || caseLinks?.some((link) => link.caseId === caseFilter)
+      const lifeStatusMatch = lifeStatusFilter === '' || b.lifeStatus === lifeStatusFilter
+      return nameMatch && orgMatch && caseMatch && lifeStatusMatch && matchesTraitFilters(b.traits, filters)
     })
     .reverse()
 
@@ -137,7 +160,7 @@ export function PersonagensSection({
   }
 
   const onTraitChange = (bankChar: BankCharacter, field: TraitField, value: string) =>
-    updateCharacter(bankChar.id, { traits: { ...bankChar.traits, [field]: value } })
+    updateCharacter(bankChar.id, { traits: { ...createPhysicalTraits(), ...bankChar.traits, [field]: value } })
 
   return (
     <div className="flex flex-col gap-4">
@@ -219,6 +242,40 @@ export function PersonagensSection({
                 listId={traitSuggestionsListId(field)}
               />
             ))}
+            <label className="flex flex-col gap-1">
+              <span className="text-[10px] font-medium tracking-wide text-stone-500 uppercase">Caso relacionado</span>
+              <select
+                value={caseFilter}
+                onChange={(e) => setCaseFilter(e.target.value)}
+                className="rounded-md border border-stone-700 bg-stone-950/70 px-2.5 py-1.5 text-sm text-stone-100 outline-none transition-colors focus:border-amber-600/60 focus:ring-1 focus:ring-amber-600/30"
+              >
+                <option value="" className="bg-stone-900 text-stone-200">
+                  Todos
+                </option>
+                {caseOptions?.map((opt) => (
+                  <option key={opt.id} value={opt.id} className="bg-stone-900 text-stone-200">
+                    {opt.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[10px] font-medium tracking-wide text-stone-500 uppercase">Status</span>
+              <select
+                value={lifeStatusFilter}
+                onChange={(e) => setLifeStatusFilter(e.target.value as LifeStatus | '')}
+                className="rounded-md border border-stone-700 bg-stone-950/70 px-2.5 py-1.5 text-sm text-stone-100 outline-none transition-colors focus:border-amber-600/60 focus:ring-1 focus:ring-amber-600/30"
+              >
+                <option value="" className="bg-stone-900 text-stone-200">
+                  Todos
+                </option>
+                {LIFE_STATUS_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value} className="bg-stone-900 text-stone-200">
+                    {LIFE_STATUS_LABELS[opt.value]}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
           <datalist id="character-name-suggestions">
             {nameSuggestions.map((value) => (
@@ -255,9 +312,8 @@ export function PersonagensSection({
       )}
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        {visibleBank?.map((bankChar) => {
+        {visibleBank?.map(({ bankChar, caseLinks }) => {
           const lifeStatus = LIFE_STATUS_OPTIONS.find((o) => o.value === bankChar.lifeStatus) ?? LIFE_STATUS_OPTIONS[2]
-          const caseLinks = findCaseLinks(character.cases, bankChar.id)
           return (
             <Panel key={bankChar.id}>
               <div className="mb-2.5 flex items-center gap-2">
@@ -284,7 +340,7 @@ export function PersonagensSection({
               </div>
               <TextField
                 label="Organização"
-                value={bankChar.organization}
+                value={bankChar.organization ?? ''}
                 onChange={(v) => updateCharacter(bankChar.id, { organization: v })}
                 list="character-organization-suggestions"
                 className="mb-2.5"
@@ -294,7 +350,7 @@ export function PersonagensSection({
                   <TextField
                     key={field}
                     label={TRAIT_FIELD_LABELS[field]}
-                    value={bankChar.traits[field]}
+                    value={bankChar.traits?.[field] ?? ''}
                     onChange={(v) => onTraitChange(bankChar, field, v)}
                   />
                 ))}
@@ -302,7 +358,7 @@ export function PersonagensSection({
               <TextAreaField
                 label={TRAIT_FIELD_LABELS.description}
                 rows={2}
-                value={bankChar.traits.description}
+                value={bankChar.traits?.description ?? ''}
                 onChange={(v) => onTraitChange(bankChar, 'description', v)}
                 className="mt-2.5"
               />
