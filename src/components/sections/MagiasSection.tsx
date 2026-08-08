@@ -12,7 +12,7 @@ import {
   type SpellCompendiumFilters,
 } from '../../lib/spellCompendiumFilter'
 import { useSpellCompendium } from '../../lib/useSpellCompendium'
-import { getSpellEffectBadges } from '../../lib/spellEffects'
+import { getHealingInfo, getSpellEffectBadges } from '../../lib/spellEffects'
 import { FilterField } from '../FilterField'
 import { SpellMechanicsGrid } from '../SpellMechanicsPanel'
 import { Badge, Checkbox, Panel } from '../ui'
@@ -213,7 +213,7 @@ export function MagiasSection({
                         {spell.mechanics.damageType ? ` ${spell.mechanics.damageType}` : ''}
                       </Badge>
                     )}
-                    {getSpellEffectBadges(spell.tags).map((badge) => (
+                    {getSpellEffectBadges(spell).map((badge) => (
                       <Badge key={badge.label} className={badge.className}>
                         {badge.label}
                       </Badge>
@@ -275,7 +275,7 @@ export function MagiasSection({
                               {paragraph}
                             </p>
                           ))}
-                          {spell.mechanics && (
+                          {(spell.mechanics || getHealingInfo(spell)) && (
                             <div className="mt-3">
                               <SpellMechanicsGrid spell={spell} />
                             </div>

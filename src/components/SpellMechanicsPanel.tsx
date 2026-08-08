@@ -1,4 +1,5 @@
 import type { CompendiumSpell } from '../types/spellCompendium'
+import { getHealingInfo } from '../lib/spellEffects'
 
 export function MechanicBox({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
@@ -30,13 +31,16 @@ export function SpellQuickFacts({ spell }: { spell: CompendiumSpell }) {
   )
 }
 
-/** Dano / Resistência / Alvo-Área / Escalonamento grid, shown only for spells with mechanics data. */
+/** Cura / Dano / Resistência / Alvo-Área / Escalonamento grid, shown only for spells with mechanics (or healing) data. */
 export function SpellMechanicsGrid({ spell }: { spell: CompendiumSpell }) {
-  if (!spell.mechanics) return null
-  const { damage, damageType, save, areaOrTarget, scaling } = spell.mechanics
-  if (!damage && !save && !areaOrTarget && !scaling) return null
+  const heal = getHealingInfo(spell)
+  const { damage, damageType, save, areaOrTarget, scaling } = spell.mechanics ?? {}
+  if (!heal && !damage && !save && !areaOrTarget && !scaling) return null
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      {heal && (
+        <MechanicBox label="Cura" value={heal.dice} sub={heal.modifier ? `+ ${heal.modifier}` : undefined} />
+      )}
       {damage && <MechanicBox label="Dano" value={damage} sub={damageType} />}
       {save && <MechanicBox label="Resistência" value={save} />}
       {areaOrTarget && <MechanicBox label="Alvo / Área" value={areaOrTarget} />}
