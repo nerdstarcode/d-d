@@ -12,6 +12,7 @@ import {
   type SpellCompendiumFilters,
 } from '../../lib/spellCompendiumFilter'
 import { useSpellCompendium } from '../../lib/useSpellCompendium'
+import { getSpellEffectBadges } from '../../lib/spellEffects'
 import { FilterField } from '../FilterField'
 import { SpellMechanicsGrid } from '../SpellMechanicsPanel'
 import { Badge, Checkbox, Panel } from '../ui'
@@ -206,6 +207,17 @@ export function MagiasSection({
                     <Badge>{spell.school}</Badge>
                     {spell.concentration && <Badge className="border-sky-700/50 bg-sky-950/50 text-sky-400">Conc.</Badge>}
                     {spell.ritual && <Badge className="border-violet-700/50 bg-violet-950/50 text-violet-400">Ritual</Badge>}
+                    {spell.mechanics?.damage && (
+                      <Badge className="border-red-800/50 bg-red-950/40 text-red-400">
+                        {spell.mechanics.damage}
+                        {spell.mechanics.damageType ? ` ${spell.mechanics.damageType}` : ''}
+                      </Badge>
+                    )}
+                    {getSpellEffectBadges(spell.tags).map((badge) => (
+                      <Badge key={badge.label} className={badge.className}>
+                        {badge.label}
+                      </Badge>
+                    ))}
                     <button
                       onClick={() => toggleExpanded(spell.slug)}
                       title="Detalhes"

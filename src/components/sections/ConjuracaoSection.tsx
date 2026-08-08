@@ -5,6 +5,7 @@ import { ABILITY_LABELS, type AbilityKey, type Character, type Spell } from '../
 import type { CompendiumSpell } from '../../types/spellCompendium'
 import { SPELL_LEVEL_LABELS } from '../../types/spellCompendium'
 import { resolveSpellSlugByName, useSpellCompendium } from '../../lib/useSpellCompendium'
+import { getSpellEffectBadges } from '../../lib/spellEffects'
 import { SpellMechanicsGrid, SpellQuickFacts } from '../SpellMechanicsPanel'
 import { Modal } from '../Modal'
 import { Badge, Checkbox, NumberField, Panel, TextField } from '../ui'
@@ -234,6 +235,11 @@ function SpellList({
                   {linked.mechanics?.save && (
                     <Badge className="border-sky-800/50 bg-sky-950/40 text-sky-400">{linked.mechanics.save}</Badge>
                   )}
+                  {getSpellEffectBadges(linked.tags).map((badge) => (
+                    <Badge key={badge.label} className={badge.className}>
+                      {badge.label}
+                    </Badge>
+                  ))}
                 </div>
               )}
 
@@ -290,6 +296,21 @@ function SpellList({
               >
                 {linked ? (
                   <div className="flex flex-col gap-3">
+                    {(linked.mechanics?.damage || getSpellEffectBadges(linked.tags).length > 0) && (
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {linked.mechanics?.damage && (
+                          <Badge className="border-red-800/50 bg-red-950/40 text-red-400">
+                            {linked.mechanics.damage}
+                            {linked.mechanics.damageType ? ` ${linked.mechanics.damageType}` : ''}
+                          </Badge>
+                        )}
+                        {getSpellEffectBadges(linked.tags).map((badge) => (
+                          <Badge key={badge.label} className={badge.className}>
+                            {badge.label}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
                     <SpellQuickFacts spell={linked} />
                     {linked.mechanics && <SpellMechanicsGrid spell={linked} />}
                     <p className="text-[11px] text-stone-500">
