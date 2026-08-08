@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { BookMarked, BookOpenText, Check, Plus, Search, X } from 'lucide-react'
 import type { Character, Spell } from '../../types/character'
@@ -11,7 +11,9 @@ import {
   matchesSpellFilters,
   type SpellCompendiumFilters,
 } from '../../lib/spellCompendiumFilter'
+import { useSpellCompendium } from '../../lib/useSpellCompendium'
 import { FilterField } from '../FilterField'
+import { SpellMechanicsGrid } from '../SpellMechanicsPanel'
 import { Badge, Checkbox, Panel } from '../ui'
 
 type LevelKey = '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9'
@@ -30,24 +32,9 @@ export function MagiasSection({
   update: (patch: Partial<Character> | ((c: Character) => Character)) => void
   onNotify?: (message: string, variant: 'success' | 'error' | 'info') => void
 }) {
-  const [spells, setSpells] = useState<CompendiumSpell[] | null>(null)
-  const [loadError, setLoadError] = useState(false)
+  const { spells, loadError } = useSpellCompendium()
   const [filters, setFilters] = useState<SpellCompendiumFilters>(BLANK_SPELL_FILTERS)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
-
-  useEffect(() => {
-    let cancelled = false
-    import('../../data/spells.json')
-      .then((mod) => {
-        if (!cancelled) setSpells(mod.default as unknown as CompendiumSpell[])
-      })
-      .catch(() => {
-        if (!cancelled) setLoadError(true)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
 
   const classOptions = useMemo(() => collectSpellClasses(spells ?? []), [spells])
   const nameSuggestions = useMemo(
@@ -65,26 +52,18 @@ export function MagiasSection({
   const toggleExpanded = (slug: string) => setExpanded((prev) => ({ ...prev, [slug]: !prev[slug] }))
 
   const addToConjuracao = (spell: CompendiumSpell) => {
-    const alreadyAdded = bucketFor(character, spell.level)?.some((s) => s.name === spell.namePt)
+    const alreadyAdded = bucketFor(character, spell.level)?.some(
+      (s) => s.compendiumSlug === spell.slug || s.name === spell.namePt,
+    )
     if (alreadyAdded) {
       onNotify?.(`"${spell.namePt}" já está na Conjuração.`, 'info')
       return
     }
-    const mechanicsLine = spell.mechanics
-      ? [
-          spell.mechanics.damage &&
-            `Dano: ${spell.mechanics.damage}${spell.mechanics.damageType ? ` ${spell.mechanics.damageType}` : ''}`,
-          spell.mechanics.save && `Resistência: ${spell.mechanics.save}`,
-          spell.mechanics.areaOrTarget && `Alvo/Área: ${spell.mechanics.areaOrTarget}`,
-          spell.mechanics.scaling && `Escala: ${spell.mechanics.scaling}`,
-        ]
-          .filter(Boolean)
-          .join(' · ')
-      : ''
+    // A descrição completa vem do vínculo (compendiumSlug) — a Conjuração não precisa de uma cópia do texto.
     const newSpell: Spell = {
       name: spell.namePt,
       prepared: spell.level === 0,
-      description: [spell.description, mechanicsLine].filter(Boolean).join('\n\n'),
+      compendiumSlug: spell.slug,
     }
     update((c) => {
       if (spell.level === 0) {
@@ -217,7 +196,9 @@ export function MagiasSection({
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             {visibleSpells.map((spell) => {
               const isOpen = !!expanded[spell.slug]
-              const alreadyAdded = bucketFor(character, spell.level)?.some((s) => s.name === spell.namePt)
+              const alreadyAdded = bucketFor(character, spell.level)?.some(
+                (s) => s.compendiumSlug === spell.slug || s.name === spell.namePt,
+              )
               return (
                 <Panel key={spell.slug}>
                   <div className="mb-2 flex flex-wrap items-center gap-1.5">
@@ -283,15 +264,8 @@ export function MagiasSection({
                             </p>
                           ))}
                           {spell.mechanics && (
-                            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                              {spell.mechanics.damage && (
-                                <MechanicBox label="Dano" value={spell.mechanics.damage} sub={spell.mechanics.damageType} />
-                              )}
-                              {spell.mechanics.save && <MechanicBox label="Resistência" value={spell.mechanics.save} />}
-                              {spell.mechanics.areaOrTarget && (
-                                <MechanicBox label="Alvo / Área" value={spell.mechanics.areaOrTarget} />
-                              )}
-                              {spell.mechanics.scaling && <MechanicBox label="Escalonamento" value={spell.mechanics.scaling} />}
+                            <div className="mt-3">
+                              <SpellMechanicsGrid spell={spell} />
                             </div>
                           )}
                           {spell.revision55 && (
@@ -331,16 +305,6 @@ export function MagiasSection({
           </div>
         </>
       )}
-    </div>
-  )
-}
-
-function MechanicBox({ label, value, sub }: { label: string; value: string; sub?: string }) {
-  return (
-    <div className="rounded-lg border border-stone-800 bg-stone-950/50 p-2.5">
-      <div className="text-[9px] font-bold tracking-wider text-stone-500 uppercase">{label}</div>
-      <div className="text-xs font-semibold text-stone-200">{value}</div>
-      {sub && <div className="mt-0.5 text-[10px] text-stone-500 italic">{sub}</div>}
     </div>
   )
 }

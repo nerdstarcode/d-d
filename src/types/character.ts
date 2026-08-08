@@ -64,6 +64,8 @@ export interface Spell {
   prepared: boolean
   domain?: boolean
   description?: string
+  /** slug da magia correspondente em src/data/spells.json, se vinculada ao compêndio. */
+  compendiumSlug?: string
 }
 
 export interface SpellLevel {
